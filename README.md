@@ -15,7 +15,7 @@ That means you can now use all the logfile analysers etc. for Apache logs for yo
 
 You can use `Go` to install this package for you:
 
-    go get go.mwat.de/apachelogger
+    go get github.com/mwat56/go-apachelogger
 
 ## Usage
 
