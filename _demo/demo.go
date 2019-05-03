@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	logger "github.com/mwat56/go-apachelogger"
+	"github.com/mwat56/go-apachelogger"
 )
 
 // `myHandler()` is a dummy for demonstration purposes.
@@ -23,7 +23,7 @@ func main() {
 
 	server := http.Server{
 		Addr:    "127.0.0.1:8080",
-		Handler: logger.Wrap(pageHandler, logfile),
+		Handler: apachelogger.Wrap(pageHandler, logfile),
 	}
 
 	if err := server.ListenAndServe(); nil != err {
