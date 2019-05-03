@@ -1,9 +1,9 @@
 /*
-Package apachelogger implements a logger for web-servers.
+Package apachelogger implements a logger for Go web-servers.
 
 	Copyright (C) 2019  M.Watermann, D-10247 Berlin, FRG
 			All rights reserved
-		EMail : &lt;support@mwat.de&gt;
+		EMail : <support@mwat.de>
 
 
 This program is free software; you can redistribute it and/or modify
@@ -13,9 +13,12 @@ the Free Software Foundation; either version 3 of the License, or
 
 This software is distributed in the hope that it will be useful, but
 WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-<a href="http://www.gnu.org/licenses/gpl.html" target="extern">GNU
-General Public License</a> for more details.
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+You should have received a copy of the GNU General Public License
+along with this program. If not, see the
+[GNU General Public License](http://www.gnu.org/licenses/gpl.html)
+for details.
 
 */
 package apachelogger
