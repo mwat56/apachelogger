@@ -3,13 +3,7 @@
 ## Purpose
 
 This package can be used to add a logfile facility to your `Go` web-server.
-The format of the generated logfile entries resemble those of the popular Apache web-server.
-The pattern for a logfile entry is this:
-
-    apacheFormatPattern = "%s - %s [%s] \"%s %s %s\" %d %d \"%s\" \"%s\"\n"
-
-All the placeholders to be seen in the pattern will be filled in with the appropriate values at runtime.
-That means you can now use all the logfile analysers etc. for Apache logs for your own logfiles as well.
+The format of the generated logfile entries resemble those of the popular Apache web-server (see below).
 
 ## Installation
 
@@ -43,19 +37,38 @@ So you just have to find a way the get/set the name of the desired `logfile` –
 Then you setup your `server` like shown above using the call to `apachelogger.Wrap()` to wrap your original pagehandler with the logging facility.
 That's all.
 
+The pattern for a logfile entry is this:
+
+    apacheFormatPattern = "%s - %s [%s] \"%s %s %s\" %d %d \"%s\" \"%s\"\n"
+
+All the placeholders to be seen in the pattern will be filled in with the appropriate values at runtime which are (in order of appearance):
+
+* remote IP,
+* remote user,
+* date/time of request,
+* request method,
+* requested URL,
+* request protocol,
+* server status,
+* served size,
+* remote referrer,
+* remote user agent.
+
+It means you can now use all the logfile analysers etc. for Apache logs for your own logfiles as well.
+
 ## Special Features
 
-As **privacy** becomes a serious concern for a growing number of people (including law makers) – and the IP address is definitely to be considered as _personal data_ – this logging facility _anonymises_ the requesting URLs by setting the host-part of the remote address to zero (`0`).
+As _**privacy**_ becomes a serious concern for a growing number of people (including law makers) – the IP address is definitely to be considered as _personal data_ – this logging facility _anonymises_ the requesting URLs by setting the host-part of the remote address to zero (`0`).
 This option takes care of e.g. European servers who may _not without explicit consent_ of the users store personal data; this includes IP addresses in logfiles and elsewhere (eg. statistical data gathered from logfiles).
 
 ## Licence
 
     Copyright (C) 2019  M.Watermann, 10247 Berlin, FRG
-                All rights reserved
-            EMail : <support@mwat.de>
+                    All rights reserved
+                EMail : <support@mwat.de>
 
 > This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version.
 >
 > This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 >
-> You should have received a copy of the GNU General Public License along with this program.  If not, see the [GNU General Public License](http://www.gnu.org/licenses/gpl.html) for details.
+> You should have received a copy of the GNU General Public License along with this program. If not, see the [GNU General Public License](http://www.gnu.org/licenses/gpl.html) for details.
