@@ -1,9 +1,10 @@
 package apachelogger
 
 /*
-	This package can be used to add a logfile facility to your `Go` web-server.
-	The format of the generated logfile entries resemble those of the popular
-	Apache web-server.
+ This package can be used to add a logfile facility to your
+ `Go` web-server.
+ The format of the generated logfile entries resemble those of
+ the popular Apache web-server.
 */
 
 import (
@@ -17,16 +18,17 @@ import (
 )
 
 var (
-	// AnonymiseURLs decides wether to anonymise the remote URLs.
+	// AnonymiseURLs decides wether to anonymise the remote URLs
+	// (default: `true`).
 	//
-	// For legal reasons this variable should always be `true`.
+	// For legal reasons this variable should always stay `true`.
 	AnonymiseURLs = true
 )
 
 type (
 	// `tLogWriter` embeds a `ResponseWriter` and includes log-to-file.
 	tLogWriter struct {
-		http.ResponseWriter        // used to construct an HTTP response.
+		http.ResponseWriter        // used to construct the HTTP response.
 		logFile             string // name of the logfile to use
 		size                int    // the size/length of the data sent
 		status              int    // HTTP status code of the current request
@@ -34,6 +36,8 @@ type (
 )
 
 // Write writes the data to the connection as part of an HTTP reply.
+//
+// Part of the `http.ResponseWriter` interface.
 func (lw *tLogWriter) Write(aData []byte) (int, error) {
 	if 0 == lw.status {
 		lw.status = 200
@@ -45,6 +49,8 @@ func (lw *tLogWriter) Write(aData []byte) (int, error) {
 
 // WriteHeader sends an HTTP response header with the provided
 // status code.
+//
+// Part of the `http.ResponseWriter` interface.
 func (lw *tLogWriter) WriteHeader(aStatus int) {
 	lw.status = aStatus
 	lw.ResponseWriter.WriteHeader(aStatus)
@@ -63,7 +69,7 @@ const (
 
 // `doLog()` does the actual background logging.
 //
-// `aLogger` is the destination of log messages.
+// `aLogger` is the handler of log messages.
 //
 // `aRequest` represents an HTTP request received by a server
 //
@@ -110,12 +116,12 @@ func getPath(aURL *url.URL) (rURL string) {
 } // getPath()
 
 // `getReferrer()` returns the requests referrer field
-func getReferrer(aHeader *http.Header) string {
-	if result := aHeader.Get("Referer"); 0 < len(result) {
-		return result
+func getReferrer(aHeader *http.Header) (rReferrer string) {
+	if rReferrer = aHeader.Get("Referer"); 0 < len(rReferrer) {
+		return
 	}
-	if result := aHeader.Get("Referrer"); 0 < len(result) {
-		return result
+	if rReferrer = aHeader.Get("Referrer"); 0 < len(rReferrer) {
+		return
 	}
 
 	return "-"
@@ -134,6 +140,7 @@ func getRemote(aAddress string) (rAddress string) {
 	// we neither need nor want the remote port here:
 	rAddress, _, err := net.SplitHostPort(aAddress)
 	if err != nil {
+		// usually no port available
 		rAddress = aAddress
 	}
 	if !AnonymiseURLs { // Bad Choice!
@@ -153,10 +160,10 @@ func getRemote(aAddress string) (rAddress string) {
 } // getRemote()
 
 // `getUsername()` returns the request's username (if any).
-func getUsername(aURL *url.URL) string {
+func getUsername(aURL *url.URL) (rUser string) {
 	if nil != aURL.User {
-		if result := aURL.User.Username(); 0 < len(result) {
-			return result
+		if rUser = aURL.User.Username(); 0 < len(rUser) {
+			return
 		}
 	}
 
