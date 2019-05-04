@@ -1,10 +1,9 @@
 /*
 Package apachelogger implements a logger for Go web-servers.
 
-	Copyright (C) 2019  M.Watermann, D-10247 Berlin, FRG
-			All rights reserved
-		EMail : <support@mwat.de>
-
+    Copyright © 2019  M.Watermann, 10247 Berlin, Germany
+                All rights reserved
+            EMail : <support@mwat.de>
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

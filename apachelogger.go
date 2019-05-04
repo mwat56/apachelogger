@@ -1,7 +1,7 @@
 /**
-	Copyright (C) 2019 M.Watermann, D-10247 Berlin, FRG
-			All rights reserved
-		EMail : <support@mwat.de>
+    Copyright © 2019  M.Watermann, 10247 Berlin, Germany
+                All rights reserved
+            EMail : <support@mwat.de>
 **/
 
 package apachelogger
@@ -34,7 +34,7 @@ var (
 type (
 	// `tLogWriter` embeds a `ResponseWriter` and includes log-to-file.
 	tLogWriter struct {
-		http.ResponseWriter        // used to construct the HTTP response.
+		http.ResponseWriter        // used to construct the HTTP response
 		logFile             string // name of the logfile to use
 		size                int    // the size/length of the data sent
 		status              int    // HTTP status code of the current request
