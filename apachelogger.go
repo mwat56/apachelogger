@@ -1,3 +1,9 @@
+/**
+	Copyright (C) 2019 M.Watermann, D-10247 Berlin, FRG
+			All rights reserved
+		EMail : <support@mwat.de>
+**/
+
 package apachelogger
 
 /*
@@ -169,6 +175,8 @@ func getUsername(aURL *url.URL) (rUser string) {
 
 	return "-"
 } // getUsername()
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // Wrap returns a handler function that includes logging, wrapping
 // the given `aHandler` and calling it internally.
