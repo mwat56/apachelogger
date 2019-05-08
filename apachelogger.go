@@ -1,16 +1,16 @@
-/**
-    Copyright © 2019  M.Watermann, 10247 Berlin, Germany
-                All rights reserved
-            EMail : <support@mwat.de>
-**/
+/*
+   Copyright © 2019 M.Watermann, 10247 Berlin, Germany
+                   All rights reserved
+               EMail : <support@mwat.de>
+*/
 
 package apachelogger
 
 /*
- This package can be used to add a logfile facility to your
- `Go` web-server.
- The format of the generated logfile entries resemble those of
- the popular Apache web-server.
+   This package can be used to add a logfile facility to your
+   `Go` web-server.
+   The format of the generated logfile entries resemble those of
+   the popular Apache web-server.
 */
 
 import (
