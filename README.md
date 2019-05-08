@@ -1,5 +1,7 @@
 # ApacheLogger
 
+[![GoDoc](https://godoc.org/github.com/mwat56/go-apachelogger?status.svg)](https://godoc.org/github.com/mwat56/go-apachelogger)
+
 ## Purpose
 
 This package can be used to add a logfile facility to your `Go` web-server.
