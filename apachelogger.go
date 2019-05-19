@@ -62,6 +62,8 @@ func (lw *tLogWriter) WriteHeader(aStatus int) {
 	lw.ResponseWriter.WriteHeader(aStatus)
 } // WriteHeader()
 
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 const (
 	/*
 		91.64.58.179 - username [25/Apr/2018:20:16:45 +0200] "GET /path/to/file?lang=en HTTP/1.1" 200 27155 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:56.0) Gecko/20100101 Firefox/56.0"
@@ -86,15 +88,9 @@ func doLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
 		agent = "-"
 	}
 
-	fh, err := os.OpenFile(aLogger.logFile,
-		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		fh = os.Stdout // a last resort
-	} else {
-		defer fh.Close()
-	}
-
-	fmt.Fprintf(fh, apacheFormatPattern,
+	// first build the log string to keep the file access time
+	// as short as possible
+	s := fmt.Sprintf(apacheFormatPattern,
 		getRemote(aRequest.RemoteAddr),
 		getUsername(aRequest.URL),
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
@@ -106,6 +102,16 @@ func doLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
 		getReferrer(&aRequest.Header),
 		agent,
 	)
+
+	fh, err := os.OpenFile(aLogger.logFile,
+		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+	if err != nil {
+		fh = os.Stdout // a last resort
+	} else {
+		defer fh.Close()
+	}
+
+	fmt.Fprint(fh, s)
 } // doLog()
 
 // `getPath()` returns the requested path (and CGI query).
@@ -135,7 +141,7 @@ func getReferrer(aHeader *http.Header) (rReferrer string) {
 
 var (
 	// RegEx to match IPv4 addresses:
-	ipv4RE = regexp.MustCompile(`^(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.\d{1,3}`)
+	ipv4RE = regexp.MustCompile(`^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.[0-9]{1,3}`)
 
 	// RegEx to match IPv6 addresses:
 	ipv6RE = regexp.MustCompile(`([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})`)
@@ -143,9 +149,9 @@ var (
 
 // `getRemote()` reads and anonymises the remote address.
 func getRemote(aAddress string) (rAddress string) {
+	var err error
 	// we neither need nor want the remote port here:
-	rAddress, _, err := net.SplitHostPort(aAddress)
-	if err != nil {
+	if rAddress, _, err = net.SplitHostPort(aAddress); err != nil {
 		// usually no port available
 		rAddress = aAddress
 	}
