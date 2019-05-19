@@ -1,6 +1,7 @@
 # ApacheLogger
 
 [![GoDoc](https://godoc.org/github.com/mwat56/go-apachelogger?status.svg)](https://godoc.org/github.com/mwat56/go-apachelogger)
+[![view examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg?style=flat-square)](https://github.com/mwat56/go-apachelogger/blob/master/_demo/demo.go)
 
 ## Purpose
 
@@ -11,7 +12,7 @@ The format of the generated logfile entries resemble those of the popular Apache
 
 You can use `Go` to install this package for you:
 
-    go get github.com/mwat56/go-apachelogger
+    go get -u github.com/mwat56/go-apachelogger
 
 ## Usage
 
@@ -65,9 +66,9 @@ This option takes care of e.g. European servers who may _not without explicit co
 
 ## Licence
 
-    Copyright © 2019 M.Watermann, 10247 Berlin, Germany
-                    All rights reserved
-                EMail : <support@mwat.de>
+        Copyright © 2019 M.Watermann, 10247 Berlin, Germany
+                        All rights reserved
+                    EMail : <support@mwat.de>
 
 > This program is free software; you can redistribute it and/or modify it under the terms of the GNU General Public License as published by the Free Software Foundation; either version 3 of the License, or (at your option) any later version.
 >
