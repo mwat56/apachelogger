@@ -34,11 +34,16 @@ var (
 type (
 	// `tLogWriter` embeds a `ResponseWriter` and includes log-to-file.
 	tLogWriter struct {
-		http.ResponseWriter        // used to construct the HTTP response
-		logFile             string // name of the logfile to use
-		size                int    // the size/length of the data sent
-		status              int    // HTTP status code of the current request
+		http.ResponseWriter     // used to construct the HTTP response
+		size                int // the size/length of the data sent
+		status              int // HTTP status code of the current request
 	}
+
+	// `tDoneChannel` signals the end of operations.
+	tDoneChannel chan bool
+
+	// `tWriteChannel` the channel passing on the log texts.
+	tWriteChannel chan string
 )
 
 // Write writes the data to the connection as part of an HTTP reply.
@@ -77,20 +82,23 @@ const (
 
 // `doLog()` does the actual background logging.
 //
+// This function is called once for each request.
+//
 // `aLogger` is the handler of log messages.
 //
 // `aRequest` represents an HTTP request received by a server
 //
 // `aTime` is the actual time of the request served.
-func doLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
+//
+// `aDestination` is the channel to the logfile writer.
+func doLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time, aDestination tWriteChannel) {
 	agent := aRequest.UserAgent()
 	if "" == agent {
 		agent = "-"
 	}
 
-	// first build the log string to keep the file access time
-	// as short as possible
-	s := fmt.Sprintf(apacheFormatPattern,
+	// build the log string and send it to the channel:
+	aDestination <- fmt.Sprintf(apacheFormatPattern,
 		getRemote(aRequest.RemoteAddr),
 		getUsername(aRequest.URL),
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
@@ -102,17 +110,59 @@ func doLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
 		getReferrer(&aRequest.Header),
 		agent,
 	)
-
-	fh, err := os.OpenFile(aLogger.logFile,
-		os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-	if err != nil {
-		fh = os.Stdout // a last resort
-	} else {
-		defer fh.Close()
-	}
-
-	fmt.Fprint(fh, s)
 } // doLog()
+
+// `doWrite()` performs the actual file write.
+//
+// This function is called only once, handling all requests.
+//
+// `aLogfile` the name of the logfile to write to.
+//
+// `aSource` the source of log messages to write.
+//
+// `aQuit`
+func doWrite(aLogfile string, aSource tWriteChannel, aQuit tDoneChannel) {
+	var (
+		err  error
+		file *os.File
+		txt  string
+	)
+	defer func(aFile *os.File) {
+		if nil != aFile {
+			aFile.Close()
+		}
+	}(file)
+
+	// let the application initialise:
+	time.Sleep(time.Second)
+
+	for { // wait for strings to write
+		select {
+		case txt = <-aSource:
+			if nil == file {
+				if file, err = os.OpenFile(aLogfile,
+					os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); err != nil {
+					file = os.Stdout // a last resort
+				}
+			}
+			fmt.Fprint(file, txt)
+
+			// let's handle all waiting messages
+			for txt = range aSource {
+				fmt.Fprint(file, txt)
+			}
+
+		case <-aQuit:
+			return
+
+		default:
+			if nil != file {
+				file.Close()
+				file = nil
+			}
+		}
+	}
+} // doWrite()
 
 // `getPath()` returns the requested path (and CGI query).
 func getPath(aURL *url.URL) (rURL string) {
@@ -194,17 +244,18 @@ func getUsername(aURL *url.URL) (rUser string) {
 //
 // `aLogfile` is the name of the file to use for writing the log messages.
 func Wrap(aHandler http.Handler, aLogfile string) http.Handler {
+	quit := make(tDoneChannel, 2)
+	messenger := make(tWriteChannel, 64)
+
+	// start the background writer:
+	go doWrite(aLogfile, messenger, quit)
+
 	return http.HandlerFunc(
 		func(aWriter http.ResponseWriter, aRequest *http.Request) {
-			lw := &tLogWriter{
-				aWriter,
-				aLogfile,
-				0,
-				0,
-			}
+			lw := &tLogWriter{aWriter, 0, 0}
 			aHandler.ServeHTTP(lw, aRequest)
 
-			go doLog(lw, aRequest, time.Now())
+			go doLog(lw, aRequest, time.Now(), messenger)
 		})
 } // Wrap()
 

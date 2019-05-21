@@ -1,7 +1,9 @@
 package apachelogger
 
 import (
+	"fmt"
 	"net/url"
+	"strings"
 	"testing"
 )
 
@@ -95,3 +97,19 @@ func Test_getUsername(t *testing.T) {
 		})
 	}
 } // Test_getUsername()
+
+func Benchmark_doWrite(b *testing.B) {
+	var s string
+	quit := make(tDoneChannel, 2)
+	wchan := make(tWriteChannel, 64)
+	go doWrite("/dev/stderr", wchan, quit)
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		for i := 1; i < 100; i++ {
+			s = fmt.Sprintf("%02d ", i)
+			wchan <- strings.Repeat(s, 40) + "\n"
+		}
+	}
+	quit <- true
+} // Benchmark_doWrite()
