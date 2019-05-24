@@ -2,6 +2,14 @@
 
 [![GoDoc](https://godoc.org/github.com/mwat56/go-apachelogger?status.svg)](https://godoc.org/github.com/mwat56/go-apachelogger)
 [![view examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg?style=flat-square)](https://github.com/mwat56/go-apachelogger/blob/master/_demo/demo.go)
+[![License](https://img.shields.io/eclipse-marketplace/l/notepad4e.svg)](https://github.com/mwat56/go-apachelogger/blob/master/LICENSE)
+
+- [ApacheLogger](#apachelogger)
+	- [Purpose](#purpose)
+	- [Installation](#installation)
+	- [Usage](#usage)
+	- [Special Features](#special-features)
+	- [Licence](#licence)
 
 ## Purpose
 
@@ -40,9 +48,9 @@ So you just have to find a way the get/set the name of the desired `logfile` –
 Then you setup your `server` like shown above using the call to `apachelogger.Wrap()` to wrap your original pagehandler with the logging facility.
 That's all.
 
-The pattern for a logfile entry is this:
+The creation pattern for a logfile entry is this:
 
-    apacheFormatPattern = "%s - %s [%s] \"%s %s %s\" %d %d \"%s\" \"%s\"\n"
+    apacheFormatPattern = `%s - %s [%s] "%s %s %s" %d %d "%s" "%s"`
 
 All the placeholders to be seen in the pattern will be filled in with the appropriate values at runtime which are (in order of appearance):
 
