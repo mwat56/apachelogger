@@ -98,11 +98,11 @@ func Test_getUsername(t *testing.T) {
 	}
 } // Test_getUsername()
 
-func Benchmark_doWrite(b *testing.B) {
+func Benchmark_goWrite(b *testing.B) {
 	var s string
-	quit := make(tDoneChannel, 2)
-	wchan := make(tWriteChannel, 64)
-	go doWrite("/dev/stderr", wchan, quit)
+	quit := make(chan bool, 2)
+	wchan := make(chan string, 64)
+	go goWrite("/dev/stderr", wchan, quit)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
@@ -112,4 +112,4 @@ func Benchmark_doWrite(b *testing.B) {
 		}
 	}
 	quit <- true
-} // Benchmark_doWrite()
+} // Benchmark_goWrite()
