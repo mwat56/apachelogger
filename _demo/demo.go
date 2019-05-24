@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/mwat56/go-apachelogger"
+	"github.com/mwat56/apachelogger"
 )
 
 // `myHandler()` is a dummy for demonstration purposes.

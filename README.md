@@ -1,8 +1,8 @@
 # ApacheLogger
 
-[![GoDoc](https://godoc.org/github.com/mwat56/go-apachelogger?status.svg)](https://godoc.org/github.com/mwat56/go-apachelogger)
-[![view examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg?style=flat-square)](https://github.com/mwat56/go-apachelogger/blob/master/_demo/demo.go)
-[![License](https://img.shields.io/eclipse-marketplace/l/notepad4e.svg)](https://github.com/mwat56/go-apachelogger/blob/master/LICENSE)
+[![GoDoc](https://godoc.org/github.com/mwat56/apachelogger?status.svg)](https://godoc.org/github.com/mwat56/apachelogger)
+[![view examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg?style=flat-square)](https://github.com/mwat56/apachelogger/blob/master/_demo/demo.go)
+[![License](https://img.shields.io/eclipse-marketplace/l/notepad4e.svg)](https://github.com/mwat56/apachelogger/blob/master/LICENSE)
 
 - [ApacheLogger](#apachelogger)
 	- [Purpose](#purpose)
@@ -20,7 +20,7 @@ The format of the generated logfile entries resemble those of the popular Apache
 
 You can use `Go` to install this package for you:
 
-    go get -u github.com/mwat56/go-apachelogger
+    go get -u github.com/mwat56/apachelogger
 
 ## Usage
 
