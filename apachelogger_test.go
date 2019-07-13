@@ -1,3 +1,9 @@
+/*
+   Copyright © 2019 M.Watermann, 10247 Berlin, Germany
+                   All rights reserved
+               EMail : <support@mwat.de>
+*/
+
 package apachelogger
 
 import (
@@ -100,9 +106,8 @@ func Test_getUsername(t *testing.T) {
 
 func Benchmark_goWrite(b *testing.B) {
 	var s string
-	quit := make(chan bool, 2)
 	wchan := make(chan string, 64)
-	go goWrite("/dev/stderr", wchan, quit)
+	go goWrite("/dev/stderr", wchan)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
@@ -111,5 +116,4 @@ func Benchmark_goWrite(b *testing.B) {
 			wchan <- strings.Repeat(s, 40) + "\n"
 		}
 	}
-	quit <- true
 } // Benchmark_goWrite()
