@@ -76,7 +76,7 @@ func getPath(aURL *url.URL) (rURL string) {
 	return
 } // getPath()
 
-// `getReferrer()` returns the requests referrer field
+// `getReferrer()` returns the request's referrer field
 func getReferrer(aHeader *http.Header) (rReferrer string) {
 	if rReferrer = aHeader.Get("Referer"); 0 < len(rReferrer) {
 		return
@@ -183,9 +183,7 @@ func goLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time, aDestin
 // `aLogfile` the name of the logfile to write to.
 //
 // `aSource` the source of log messages to write.
-//
-// `aQuit` an abort messenger.
-func goWrite(aLogfile string, aSource <-chan string, aQuit <-chan bool) {
+func goWrite(aLogfile string, aSource <-chan string) {
 	var (
 		err  error
 		file *os.File
@@ -208,7 +206,6 @@ func goWrite(aLogfile string, aSource <-chan string, aQuit <-chan bool) {
 					os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); nil != err {
 					file = os.Stdout // a last resort
 				}
-				// log.Println("goWrite() opened", aLogfile)
 			}
 			fmt.Fprint(file, txt)
 
@@ -218,19 +215,14 @@ func goWrite(aLogfile string, aSource <-chan string, aQuit <-chan bool) {
 				fmt.Fprint(file, txt)
 				cCap--
 				if 0 == cCap {
-					// give a chance to close the file
-					break
+					break	// give a chance to close the file
 				}
 			}
-
-		case <-aQuit:
-			return
 
 		default:
 			if nil != file {
 				file.Close()
 				file = nil
-				// log.Println("goWrite() closed", aLogfile)
 			}
 		}
 	}
@@ -248,11 +240,10 @@ func goWrite(aLogfile string, aSource <-chan string, aQuit <-chan bool) {
 //
 // `aLogfile` is the name of the file to use for writing the log messages.
 func Wrap(aHandler http.Handler, aLogfile string) http.Handler {
-	quit := make(chan bool, 2)
 	messenger := make(chan string, 64)
 
 	// start the background writer:
-	go goWrite(aLogfile, messenger, quit)
+	go goWrite(aLogfile, messenger)
 
 	return http.HandlerFunc(
 		func(aWriter http.ResponseWriter, aRequest *http.Request) {
