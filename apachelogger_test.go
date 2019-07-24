@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+	"time"
 )
 
 func Test_getPath(t *testing.T) {
@@ -106,14 +107,26 @@ func Test_getUsername(t *testing.T) {
 
 func Benchmark_goWrite(b *testing.B) {
 	var s string
-	wchan := make(chan string, 64)
-	go goWrite("/dev/stderr", wchan)
+	go goWrite("/dev/stderr", msgQueue)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		for i := 1; i < 100; i++ {
-			s = fmt.Sprintf("%02d ", i)
-			wchan <- strings.Repeat(s, 40) + "\n"
+			s = fmt.Sprintf("%02d%02d ", n, i)
+			msgQueue <- strings.Repeat(s, 20) + "\n"
 		}
 	}
 } // Benchmark_goWrite()
+
+func Benchmark_goCustomLog(b *testing.B) {
+	var s string
+	go goWrite("/dev/stderr", msgQueue)
+	b.ResetTimer()
+
+	for n := 0; n < b.N; n++ {
+		for i := 1; i < 100; i++ {
+			s = fmt.Sprintf("%02d%02d sender", n, i)
+			goCustomLog(s, "", time.Now())
+		}
+	}
+} // ()
