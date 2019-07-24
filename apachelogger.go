@@ -15,11 +15,13 @@ package apachelogger
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
 	"regexp"
+	"sync"
 	"time"
 )
 
@@ -176,6 +178,11 @@ func goLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time, aDestin
 	)
 } // goLog()
 
+const (
+	// Half a second to sleep in `goWrite()`.
+	halfSecond = 500 * time.Millisecond
+)
+
 // `goWrite()` performs the actual file write.
 //
 // This function is called only once, handling all write requests.
@@ -187,24 +194,29 @@ func goWrite(aLogfile string, aSource <-chan string) {
 	var (
 		err  error
 		file *os.File
+		more bool
 		txt  string
 	)
-	defer func(aFile *os.File) {
-		if nil != aFile {
-			aFile.Close()
+	defer func() {
+		if nil != file {
+			file.Close()
+			file = nil
 		}
-	}(file)
+	}()
 
 	// let the application initialise:
-	time.Sleep(time.Second)
+	time.Sleep(halfSecond)
 
 	for { // wait for strings to write
 		select {
-		case txt = <-aSource:
+		case txt, more = <-aSource:
+			if !more { // channel closed
+				return
+			}
 			if nil == file {
 				if file, err = os.OpenFile(aLogfile,
 					os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); nil != err {
-					file = os.Stdout // a last resort
+					file = os.Stderr // a last resort
 				}
 			}
 			fmt.Fprint(file, txt)
@@ -215,13 +227,17 @@ func goWrite(aLogfile string, aSource <-chan string) {
 				fmt.Fprint(file, txt)
 				cCap--
 				if 0 == cCap {
-					break	// give a chance to close the file
+					break // give a chance to close the file
 				}
 			}
 
 		default:
-			if nil != file {
-				file.Close()
+			if nil == file {
+				time.Sleep(halfSecond)
+			} else {
+				if file != os.Stderr {
+					file.Close()
+				}
 				file = nil
 			}
 		}
@@ -240,17 +256,28 @@ func goWrite(aLogfile string, aSource <-chan string) {
 //
 // `aLogfile` is the name of the file to use for writing the log messages.
 func Wrap(aHandler http.Handler, aLogfile string) http.Handler {
-	messenger := make(chan string, 64)
+	var (
+		doOnce    sync.Once
+		messenger chan string
+	)
+	doOnce.Do(func() {
+		file, err := os.OpenFile(aLogfile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
+		file.Close()
+		if nil != err {
+			log.Fatalf("%s can't open logfile: %v", os.Args[0], err)
+		}
+		messenger = make(chan string, 64)
 
-	// start the background writer:
-	go goWrite(aLogfile, messenger)
+		// start the background writer:
+		go goWrite(aLogfile, messenger)
+	})
 
 	return http.HandlerFunc(
 		func(aWriter http.ResponseWriter, aRequest *http.Request) {
 			lw := &tLogWriter{aWriter, 0, 0}
 			aHandler.ServeHTTP(lw, aRequest)
 
-			// start the log-entry formatter:
+			// run the log-entry formatter:
 			go goLog(lw, aRequest, time.Now(), messenger)
 		})
 } // Wrap()
