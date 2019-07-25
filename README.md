@@ -24,7 +24,7 @@ You can use `Go` to install this package for you:
 
 ## Usage
 
-To include the automatic logging facility you just call the `Wrap()` function (which is the only exported function of this little package) as shown here:
+To include the automatic logging facility you just call the `Wrap()` function (which is one of only two exported functions of this little package) as shown here:
 
     func main() {
         // the filename should be taken from the commandline or a config file:
@@ -71,6 +71,17 @@ It means you can now use all the logfile analysers etc. for Apache logs for your
 
 As _**privacy**_ becomes a serious concern for a growing number of people (including law makers) – the IP address is definitely to be considered as _personal data_ – this logging facility _anonymises_ the requesting users by setting the host-part of the respective remote address to zero (`0`).
 This option takes care of e.g. European servers who may _not without explicit consent_ of the users store personal data; this includes IP addresses in logfiles and elsewhere (eg. statistical data gathered from logfiles).
+
+While the logging of web-requests is done fully automatic you can _manually add entries_ to the logfile by calling
+
+	apachelogger.Log(aSender, aMessage string)
+
+The `aSender` argument should give some indication of from where in your program you're calling the function, and `aMessage` is the text you want to write to the logfile.
+To preserve the format of the log-entry neither `aSender` nor `aMessage` should contain double-quotes (`"`).
+The messages are logged as coming from `127.0.0.1` with an user-agent of `mwat56/apachelogger`; this should make it easy to find these messages amongst all the 'normal' ones.
+
+To avoid that a `panic` crashes your program this modules catches and `recover`s such situations.
+The error/cause of the `panic` is written to the logfile for later inspection.
 
 ## Licence
 
