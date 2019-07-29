@@ -1,10 +1,12 @@
 # ApacheLogger
 
-[![golang](https://img.shields.io/badge/Language-Go-green.svg?style=flat)](https://golang.org)
-[![GoDoc](https://godoc.org/github.com/mwat56/apachelogger?status.svg)](https://godoc.org/github.com/mwat56/apachelogger)
-[![Tag](https://img.shields.io/github/tag/mwat56/apachelogger.svg?style=flat-square)](https://github.com/mwat56/apachelogger/tags)
-[![View examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg?style=flat-square)](https://github.com/mwat56/apachelogger/blob/master/_demo/demo.go)
-[![License](https://img.shields.io/eclipse-marketplace/l/notepad4e.svg)](https://github.com/mwat56/apachelogger/blob/master/LICENSE)
+[![Golang](https://img.shields.io/badge/Language-Go-green.svg)](https://golang.org/)
+[![GoDoc](https://godoc.org/github.com/mwat56/apachelogger?status.svg)](https://godoc.org/github.com/mwat56/apachelogger/)
+[![Issues](https://img.shields.io/github/issues/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/issues?q=is%3Aopen+is%3Aissue)
+[![Size](https://img.shields.io/github/repo-size/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/)
+[![Tag](https://img.shields.io/github/tag/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/tags)
+[![License](https://img.shields.io/github/license/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/blob/master/LICENSE)
+[![View examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg)](https://github.com/mwat56/apachelogger/blob/master/_demo/demo.go)
 
 - [ApacheLogger](#apachelogger)
 	- [Purpose](#purpose)
@@ -16,7 +18,7 @@
 ## Purpose
 
 This package can be used to add a logfile facility to your `Go` web-server.
-The format of the generated logfile entries resemble those of the popular Apache web-server (see below).
+The format of the generated logfile entries resemble those of the popular _Apache_ web-server (see below).
 
 ## Installation
 
@@ -76,7 +78,7 @@ This option takes care of e.g. European servers who may _not without explicit co
 
 While the logging of web-requests is done fully automatic you can _manually add entries_ to the logfile by calling
 
-	apachelogger.Log(aSender, aMessage string)
+    apachelogger.Log(aSender, aMessage string)
 
 The `aSender` argument should give some indication of from where in your program you're calling the function, and `aMessage` is the text you want to write to the logfile.
 To preserve the format of the log-entry neither `aSender` nor `aMessage` should contain double-quotes (`"`).
