@@ -1,5 +1,5 @@
 /*
-Package apachelogger implements a logger for Go web-servers.
+Package apachelogger implements a logger plugin for Go web-servers.
 
     Copyright © 2019 M.Watermann, 10247 Berlin, Germany
                     All rights reserved

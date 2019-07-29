@@ -1,7 +1,9 @@
 # ApacheLogger
 
+[![golang](https://img.shields.io/badge/Language-Go-green.svg?style=flat)](https://golang.org)
 [![GoDoc](https://godoc.org/github.com/mwat56/apachelogger?status.svg)](https://godoc.org/github.com/mwat56/apachelogger)
-[![view examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg?style=flat-square)](https://github.com/mwat56/apachelogger/blob/master/_demo/demo.go)
+[![Tag](https://img.shields.io/github/tag/mwat56/apachelogger.svg?style=flat-square)](https://github.com/mwat56/apachelogger/tags)
+[![View examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg?style=flat-square)](https://github.com/mwat56/apachelogger/blob/master/_demo/demo.go)
 [![License](https://img.shields.io/eclipse-marketplace/l/notepad4e.svg)](https://github.com/mwat56/apachelogger/blob/master/LICENSE)
 
 - [ApacheLogger](#apachelogger)
