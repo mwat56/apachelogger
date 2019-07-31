@@ -6,6 +6,8 @@
 
 package apachelogger
 
+//lint:file-ignore ST1017 - I prefer Yoda conditions
+
 /*
    This package can be used to add a logfile facility to your
    `Go` web-server.
@@ -229,7 +231,7 @@ func goWrite(aLogfile string, aSource <-chan string) {
 	)
 	defer func() {
 		if nil != file {
-			file.Close()
+			_ = file.Close()
 		}
 	}()
 
@@ -245,7 +247,7 @@ func goWrite(aLogfile string, aSource <-chan string) {
 			}
 			if nil == file {
 				if file, err = os.OpenFile(aLogfile,
-					os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644); nil != err {
+					os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0640); /* #nosec G302 */ nil != err {
 					file = os.Stderr // a last resort
 				}
 			}
@@ -266,7 +268,7 @@ func goWrite(aLogfile string, aSource <-chan string) {
 				time.Sleep(halfSecond)
 			} else {
 				if file != os.Stderr {
-					file.Close()
+					_ = file.Close()
 				}
 				file = nil
 			}
@@ -302,8 +304,8 @@ func Wrap(aHandler http.Handler, aLogfile string) http.Handler {
 		doOnce sync.Once
 	)
 	doOnce.Do(func() {
-		file, err := os.OpenFile(aLogfile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0644)
-		file.Close()
+		file, err := os.OpenFile(aLogfile, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0640) // #nosec G302
+		_ = file.Close()
 		if nil != err {
 			log.Fatalf("%s can't open logfile: %v", os.Args[0], err)
 		}

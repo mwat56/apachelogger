@@ -11,7 +11,7 @@ import (
 
 // `myHandler()` is a dummy for demonstration purposes.
 func myHandler(aWriter http.ResponseWriter, aRequest *http.Request) {
-	io.WriteString(aWriter, "Hello world!")
+	_, _ = io.WriteString(aWriter, "Hello world!")
 } // myHandler()
 
 func main() {
