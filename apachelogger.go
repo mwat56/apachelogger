@@ -230,7 +230,7 @@ func goWrite(aLogfile string, aSource <-chan string) {
 		txt  string
 	)
 	defer func() {
-		if nil != file {
+		if os.Stderr != file {
 			_ = file.Close()
 		}
 	}()
@@ -267,7 +267,7 @@ func goWrite(aLogfile string, aSource <-chan string) {
 			if nil == file {
 				time.Sleep(halfSecond)
 			} else {
-				if file != os.Stderr {
+				if os.Stderr != file {
 					_ = file.Close()
 				}
 				file = nil
