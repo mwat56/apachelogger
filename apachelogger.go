@@ -25,6 +25,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"sync"
 	"time"
 )
@@ -162,6 +163,10 @@ func goCustomLog(aSender, aMessage string, aTime time.Time) {
 	}
 	if 0 == len(aMessage) {
 		aMessage = "PING"
+	} else {
+		aMessage = strings.Replace(aMessage, "\n", "; ", -1)
+		aMessage = strings.Replace(aMessage, "\t", " ", -1)
+		aMessage = strings.Replace(aMessage, "  ", " ", -1)
 	}
 	uName := "-"
 	if user, err := user.Current(); (nil == err) && (0 < len(user.Username)) {
@@ -173,7 +178,7 @@ func goCustomLog(aSender, aMessage string, aTime time.Time) {
 		"127.0.0.1",
 		uName,
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
-		"POST",
+		"LOG",
 		aMessage,
 		"HTTP/1.0",
 		500,
