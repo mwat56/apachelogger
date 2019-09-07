@@ -107,20 +107,20 @@ func Test_getUsername(t *testing.T) {
 
 func Benchmark_goWrite(b *testing.B) {
 	var s string
-	go goWrite("/dev/stderr", msgQueue)
+	go goWrite("/dev/stderr", alMsgQueue)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		for i := 1; i < 100; i++ {
 			s = fmt.Sprintf("%02d%02d ", n, i)
-			msgQueue <- strings.Repeat(s, 20) + "\n"
+			alMsgQueue <- strings.Repeat(s, 20) + "\n"
 		}
 	}
 } // Benchmark_goWrite()
 
 func Benchmark_goCustomLog(b *testing.B) {
 	var s string
-	go goWrite("/dev/stderr", msgQueue)
+	go goWrite("/dev/stderr", alMsgQueue)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {

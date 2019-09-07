@@ -6,13 +6,13 @@
 
 package apachelogger
 
-//lint:file-ignore ST1017 - I prefer Yoda conditions
+//lint:file-ignore ST1017 – I prefer Yoda conditions
 
 /*
    This package can be used to add a logfile facility to your
    `Go` web-server.
-   The format of the generated logfile entries resemble those of
-   the popular Apache web-server.
+   The format of the generated logfile entries resembles that
+   of the popular Apache web-server.
 */
 
 import (
@@ -63,6 +63,8 @@ func (lw *tLogWriter) Write(aData []byte) (int, error) {
 // status code.
 //
 // Part of the `http.ResponseWriter` interface.
+//
+//	`aStatus` is the request's funal result code.
 func (lw *tLogWriter) WriteHeader(aStatus int) {
 	lw.status = aStatus
 	lw.ResponseWriter.WriteHeader(aStatus)
@@ -97,10 +99,10 @@ func getReferrer(aHeader *http.Header) (rReferrer string) {
 
 var (
 	// RegEx to match IPv4 addresses:
-	ipv4RE = regexp.MustCompile(`^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.[0-9]{1,3}`)
+	alIpv4RE = regexp.MustCompile(`^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.[0-9]{1,3}`)
 
 	// RegEx to match IPv6 addresses:
-	ipv6RE = regexp.MustCompile(`([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})`)
+	alIpv6RE = regexp.MustCompile(`([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})`)
 )
 
 // `getRemote()` reads and anonymises the remote address.
@@ -114,11 +116,11 @@ func getRemote(aAddress string) (rAddress string) {
 	if !AnonymiseURLs { // Bad Choice!
 		return
 	}
-	if matches := ipv4RE.FindStringSubmatch(rAddress); 3 < len(matches) {
+	if matches := alIpv4RE.FindStringSubmatch(rAddress); 3 < len(matches) {
 		// anonymise the remote IPv4 address:
 		rAddress = fmt.Sprintf("%s.%s.%s.0",
 			matches[1], matches[2], matches[3])
-	} else if matches := ipv6RE.FindStringSubmatch(rAddress); 8 < len(matches) {
+	} else if matches := alIpv6RE.FindStringSubmatch(rAddress); 8 < len(matches) {
 		// anonymise the remote IPv6 address:
 		rAddress = fmt.Sprintf("%s:%s:%s:%s:0:0:0:0",
 			matches[1], matches[2], matches[3], matches[4])
@@ -147,13 +149,13 @@ const (
 		2001:4dd6:b474:0:1234:5678:90ab:cdef - - [24/Apr/2018:23:58:42 +0200] "GET /path/to/file HTTP/1.1" 200 5361 "https://www.google.de/" "Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1 Mobile/15E148 Safari/604.1"
 	*/
 
-	// `apacheFormatPattern` is the format of Apache like logfile entries:
-	apacheFormatPattern = `%s - %s [%s] "%s %s %s" %d %d "%s" "%s"` + "\n"
+	// `alApacheFormatPattern` is the format of Apache like logfile entries:
+	alApacheFormatPattern = `%s - %s [%s] "%s %s %s" %d %d "%s" "%s"` + "\n"
 )
 
 var (
 	// the channel to send log-messages to and read messages from
-	msgQueue = make(chan string, 64)
+	alMsgQueue = make(chan string, 64)
 )
 
 // `goCustomLog()` sends a custom log message on behalf of `Log()`.
@@ -169,12 +171,12 @@ func goCustomLog(aSender, aMessage string, aTime time.Time) {
 		aMessage = strings.Replace(aMessage, "  ", " ", -1)
 	}
 	uName := "-"
-	if user, err := user.Current(); (nil == err) && (0 < len(user.Username)) {
-		uName = user.Username
+	if usr, err := user.Current(); (nil == err) && (0 < len(usr.Username)) {
+		uName = usr.Username
 	}
 
 	// build the log string and send it to the channel:
-	msgQueue <- fmt.Sprintf(apacheFormatPattern,
+	alMsgQueue <- fmt.Sprintf(alApacheFormatPattern,
 		"127.0.0.1",
 		uName,
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
@@ -202,7 +204,7 @@ func goLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
 	}
 
 	// build the log string and send it to the channel:
-	msgQueue <- fmt.Sprintf(apacheFormatPattern,
+	alMsgQueue <- fmt.Sprintf(alApacheFormatPattern,
 		getRemote(aRequest.RemoteAddr),
 		getUsername(aRequest.URL),
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
@@ -218,7 +220,7 @@ func goLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
 
 const (
 	// Half a second to sleep in `goWrite()`.
-	halfSecond = 500 * time.Millisecond
+	alHalfSecond = 500 * time.Millisecond
 )
 
 // `goWrite()` performs the actual file write.
@@ -241,13 +243,12 @@ func goWrite(aLogfile string, aSource <-chan string) {
 	}()
 
 	// let the application initialise:
-	time.Sleep(halfSecond)
+	time.Sleep(alHalfSecond)
 
 	for { // wait for strings to write
 		select {
 		case txt, more = <-aSource:
 			if !more { // channel closed
-				log.Println("apachelogger.goWrite(): message channel closed")
 				return
 			}
 			if nil == file {
@@ -270,7 +271,7 @@ func goWrite(aLogfile string, aSource <-chan string) {
 
 		default:
 			if nil == file {
-				time.Sleep(halfSecond)
+				time.Sleep(alHalfSecond)
 			} else {
 				if os.Stderr != file {
 					_ = file.Close()
@@ -316,7 +317,7 @@ func Wrap(aHandler http.Handler, aLogfile string) http.Handler {
 		}
 
 		// start the background writer:
-		go goWrite(aLogfile, msgQueue)
+		go goWrite(aLogfile, alMsgQueue)
 	})
 
 	return http.HandlerFunc(
