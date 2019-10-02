@@ -8,6 +8,8 @@ package apachelogger
 
 import (
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
@@ -57,8 +59,16 @@ func Test_getPath(t *testing.T) {
 } // Test_getPath()
 
 func Test_getRemote(t *testing.T) {
+	req1 := httptest.NewRequest("GET", "/", nil)
+	req1.RemoteAddr = "127.0.0.1"
+	req2 := httptest.NewRequest("GET", "/", nil)
+	req2.RemoteAddr = "192.168.1.234:1234"
+	req3 := httptest.NewRequest("GET", "/", nil)
+	req3.RemoteAddr = "[2001:9876:5432:abcd:1234:5678:90ab:cdef]"
+	req4 := httptest.NewRequest("GET", "/", nil)
+	req4.RemoteAddr = "[2001:4567:9876:abcd:1234:5678:90ab:cdef]:6789"
 	type args struct {
-		aAddress string
+		aRequest *http.Request
 	}
 	tests := []struct {
 		name string
@@ -66,14 +76,14 @@ func Test_getRemote(t *testing.T) {
 		want string
 	}{
 		// TODO: Add test cases.
-		{" 1", args{"127.0.0.1"}, "127.0.0.0"},
-		{" 2", args{"192.168.1.234:1234"}, "192.168.1.0"},
-		{" 3", args{"[2001:9876:5432:abcd:1234:5678:90ab:cdef]"}, "2001:9876:5432:abcd:0:0:0:0"},
-		{" 4", args{"[2001:4567:9876:abcd:1234:5678:90ab:cdef]:6789"}, "2001:4567:9876:abcd:0:0:0:0"},
+		{" 1", args{req1}, "127.0.0.0"},
+		{" 2", args{req2}, "192.168.1.0"},
+		{" 3", args{req3}, "2001:9876:5432:abcd:0:0:0:0"},
+		{" 4", args{req4}, "2001:4567:9876:abcd:0:0:0:0"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getRemote(tt.args.aAddress); got != tt.want {
+			if got := getRemote(tt.args.aRequest); got != tt.want {
 				t.Errorf("getRemote() = %v, want %v", got, tt.want)
 			}
 		})

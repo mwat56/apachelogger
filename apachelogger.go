@@ -106,16 +106,29 @@ var (
 )
 
 // `getRemote()` reads and anonymises the remote address.
-func getRemote(aAddress string) (rAddress string) {
+func getRemote(aRequest *http.Request) (rAddress string) {
 	var err error
-	// we neither need nor want the remote port here:
-	if rAddress, _, err = net.SplitHostPort(aAddress); err != nil {
+
+	addr := aRequest.RemoteAddr
+	// We neither need nor want the remote port here:
+	if rAddress, _, err = net.SplitHostPort(addr); err != nil {
 		// err == "missing port in address"
-		rAddress = aAddress
+		rAddress = addr
 	}
+	// Check whether the request went through a proxy.
+	// X-Forwarded-For: client, proxy1, proxy2
+	// Note: "proxy3" is the actual sender (i.e. aRequest.RemoteAddr).
+	if xff := strings.Trim(aRequest.Header.Get("X-Forwarded-For"), ","); 0 < len(xff) {
+		addrs := strings.Split(xff, ",")
+		if ip := net.ParseIP(addrs[0]); ip != nil {
+			rAddress = ip.String()
+		}
+	}
+
 	if !AnonymiseURLs { // Bad Choice!
 		return
 	}
+
 	if matches := alIpv4RE.FindStringSubmatch(rAddress); 3 < len(matches) {
 		// anonymise the remote IPv4 address:
 		rAddress = fmt.Sprintf("%s.%s.%s.0",
@@ -155,7 +168,7 @@ const (
 
 var (
 	// the channel to send log-messages to and read messages from
-	alMsgQueue = make(chan string, 64)
+	alMsgQueue = make(chan string, 127)
 )
 
 // `goCustomLog()` sends a custom log message on behalf of `Log()`.
@@ -205,7 +218,7 @@ func goLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
 
 	// build the log string and send it to the channel:
 	alMsgQueue <- fmt.Sprintf(alApacheFormatPattern,
-		getRemote(aRequest.RemoteAddr),
+		getRemote(aRequest),
 		getUsername(aRequest.URL),
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
 		aRequest.Method,
