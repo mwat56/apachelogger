@@ -54,7 +54,8 @@ func (lw *tLogWriter) Write(aData []byte) (int, error) {
 	if 0 == lw.status {
 		lw.status = 200
 	}
-	lw.size = len(aData) // we need this for the logfile
+	// Add length of all chunks of data written.
+	lw.size += len(aData) // We need this value for the logfile.
 
 	return lw.ResponseWriter.Write(aData)
 } // Write()
@@ -229,6 +230,7 @@ func goLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
 		getReferrer(&aRequest.Header),
 		agent,
 	)
+	aLogger.status, aLogger.size = 0, 0
 } // goLog()
 
 const (
