@@ -168,8 +168,8 @@ const (
 )
 
 var (
-	// the channel to send log-messages to and read messages from
-	alMsgQueue = make(chan string, 127)
+	// Channel to send log-messages to and read messages from.
+	alMsgQueue = make(chan string, 7)
 )
 
 // `goCustomLog()` sends a custom log message on behalf of `Log()`.
@@ -204,14 +204,14 @@ func goCustomLog(aSender, aMessage string, aTime time.Time) {
 	)
 } // goCustomLog()
 
-// `goLog()` does the actual background logging.
+// `goStandardLog()` does the actual background logging.
 //
 // This function is called once for each request.
 //
 //	`aLogger` is the handler of log messages.
 //	`aRequest` represents an HTTP request received by a server.
 //	`aTime` is the actual time of the request served.
-func goLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
+func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
 	agent := aRequest.UserAgent()
 	if "" == agent {
 		agent = "-"
@@ -231,7 +231,7 @@ func goLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
 		agent,
 	)
 	aLogger.status, aLogger.size = 0, 0
-} // goLog()
+} // goStandardLog()
 
 const (
 	// Half a second to sleep in `goWrite()`.
@@ -349,7 +349,7 @@ func Wrap(aHandler http.Handler, aLogfile string) http.Handler {
 			aHandler.ServeHTTP(lw, aRequest)
 
 			// run the log-entry formatter:
-			go goLog(lw, aRequest, now)
+			go goStandardLog(lw, aRequest, now)
 		})
 } // Wrap()
 
