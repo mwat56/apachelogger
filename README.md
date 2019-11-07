@@ -7,7 +7,7 @@
 [![Size](https://img.shields.io/github/repo-size/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/)
 [![Tag](https://img.shields.io/github/tag/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/tags)
 [![License](https://img.shields.io/github/license/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/blob/master/LICENSE)
-[![View examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg)](https://github.com/mwat56/apachelogger/blob/master/_demo/demo.go)
+[![View examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg)](https://github.com/mwat56/apachelogger/blob/master/cmd/demo.go)
 
 - [ApacheLogger](#apachelogger)
 	- [Purpose](#purpose)
