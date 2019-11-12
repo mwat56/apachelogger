@@ -73,6 +73,34 @@ func (lw *tLogWriter) WriteHeader(aStatus int) {
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+type (
+	// Simple structure implemening the `Writer` interface.
+	tLogLog struct{}
+)
+
+// Write sends `aData` to the log file.
+//
+//	`aData` The error text to log.
+func (ll tLogLog) Write(aData []byte) (int, error) {
+	dl := len(aData)
+	if 0 < dl {
+		// To return fast to the caller we perform the actual
+		// writing to the logfile in background:
+		go goCustomLog(`errorLogger`, string(aData), time.Now())
+	}
+
+	return dl, nil
+} // Write()
+
+// SetErrLog sets the error logger of `aServer`.
+//
+//	`aServer` The server instance whose errlogger is to be set.
+func SetErrLog(aServer *http.Server) {
+	aServer.ErrorLog = log.New(tLogLog{}, "", log.Llongfile)
+} // SetErrLog()
+
+/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+
 // `getPath()` returns the requested path (and CGI query).
 func getPath(aURL *url.URL) (rURL string) {
 	rURL = aURL.Path
@@ -168,8 +196,11 @@ const (
 )
 
 var (
+	// Name of current user (used by `goCustomLog()`).
+	alCurrentUser string = "-"
+
 	// Channel to send log-messages to and read messages from.
-	alMsgQueue = make(chan string, 7)
+	alMsgQueue = make(chan string, 127)
 )
 
 // `goCustomLog()` sends a custom log message on behalf of `Log()`.
@@ -182,17 +213,13 @@ func goCustomLog(aSender, aMessage string, aTime time.Time) {
 	} else {
 		aMessage = strings.Replace(aMessage, "\n", "; ", -1)
 		aMessage = strings.Replace(aMessage, "\t", " ", -1)
-		aMessage = strings.Replace(aMessage, "  ", " ", -1)
-	}
-	uName := "-"
-	if usr, err := user.Current(); (nil == err) && (0 < len(usr.Username)) {
-		uName = usr.Username
+		aMessage = strings.TrimSpace(strings.Replace(aMessage, "  ", " ", -1))
 	}
 
 	// build the log string and send it to the channel:
 	alMsgQueue <- fmt.Sprintf(alApacheFormatPattern,
 		"127.0.0.1",
-		uName,
+		alCurrentUser,
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
 		"LOG",
 		aMessage,
@@ -213,7 +240,7 @@ func goCustomLog(aSender, aMessage string, aTime time.Time) {
 //	`aTime` is the actual time of the request served.
 func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time) {
 	agent := aRequest.UserAgent()
-	if "" == agent {
+	if 0 == len(agent) {
 		agent = "-"
 	}
 
@@ -233,11 +260,6 @@ func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aTime time.Time)
 	aLogger.status, aLogger.size = 0, 0
 } // goStandardLog()
 
-const (
-	// Half a second to sleep in `goWrite()`.
-	alHalfSecond = 500 * time.Millisecond
-)
-
 // `goWrite()` performs the actual file write.
 //
 // This function is run only once, handling all write requests.
@@ -248,54 +270,56 @@ func goWrite(aLogfile string, aSource <-chan string) {
 	var (
 		err  error
 		file *os.File
-		more bool
-		txt  string
 	)
 	defer func() {
-		if os.Stderr != file {
+		if nil != file {
 			_ = file.Close()
 		}
 	}()
 
-	// let the application initialise:
-	time.Sleep(alHalfSecond)
+	time.Sleep(time.Second) // let the application initialise
+	timer := time.NewTimer(time.Minute)
+	openFlags := os.O_CREATE | os.O_APPEND | os.O_WRONLY
 
 	for { // wait for strings to write
 		select {
-		case txt, more = <-aSource:
+		case txt, more := <-aSource:
 			if !more { // channel closed
 				return
 			}
 			if nil == file {
-				if file, err = os.OpenFile(aLogfile,
-					os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0640); /* #nosec G302 */ nil != err {
-					file = os.Stderr // a last resort
+				for {
+					if file, err = os.OpenFile(aLogfile, openFlags, 0640); /* #nosec G302 */ nil == err {
+						break
+					}
+					time.Sleep(time.Millisecond)
 				}
+				// fmt.Fprintln(file, `OPEN -`, time.Now().Format("[02/Jan/2006:15:04:05 -0700]")) //TODO REMOVE
 			}
 			fmt.Fprint(file, txt)
 
-			// let's handle waiting messages
-			cCap := cap(aSource)
-			for txt = range aSource {
-				fmt.Fprint(file, txt)
-				cCap--
-				if 0 == cCap {
-					break // give a chance to close the file
-				}
+			// handle the waiting messsages
+			for cLen := len(aSource); 0 < cLen; cLen-- {
+				fmt.Fprint(file, <-aSource)
 			}
 
-		default:
-			if nil == file {
-				time.Sleep(alHalfSecond)
-			} else {
-				if os.Stderr != file {
-					_ = file.Close()
-				}
+		case <-timer.C:
+			if nil != file {
+				// fmt.Fprintln(file, `CLOSE -`, time.Now().Format("[02/Jan/2006:15:04:05 -0700]")) //TODO REMOVE
+				_ = file.Close()
 				file = nil
 			}
+			timer.Reset(time.Minute)
+
 		}
 	}
 } // goWrite()
+
+func init() {
+	if usr, err := user.Current(); (nil == err) && (0 < len(usr.Username)) {
+		alCurrentUser = usr.Username
+	}
+} // init()
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 

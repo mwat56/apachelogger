@@ -1,4 +1,12 @@
+/*
+   Copyright © 2019 M.Watermann, 10247 Berlin, Germany
+                   All rights reserved
+               EMail : <support@mwat.de>
+*/
+
 package main
+
+//lint:file-ignore ST1017 – I prefer Yoda conditions
 
 import (
 	"io"
@@ -25,8 +33,11 @@ func main() {
 		Addr:    "127.0.0.1:8080",
 		Handler: apachelogger.Wrap(pageHandler, logfile),
 	}
+	apachelogger.SetErrLog(&server)
 
 	if err := server.ListenAndServe(); nil != err {
 		log.Fatalf("%s: %v", os.Args[0], err)
 	}
 } // main()
+
+/* _EoF_ */
