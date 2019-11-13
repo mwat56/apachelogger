@@ -35,9 +35,7 @@ func main() {
 	}
 	apachelogger.SetErrLog(&server)
 
-	if err := server.ListenAndServe(); nil != err {
-		log.Fatalf("%s: %v", os.Args[0], err)
-	}
+	log.Fatalf("%s: %v", os.Args[0], server.ListenAndServe())
 } // main()
 
 /* _EoF_ */
