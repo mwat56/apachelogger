@@ -44,9 +44,7 @@ To include the automatic logging facility you just call the `Wrap()` function (w
             //       ^^^^^^^^^^^^^^^^^^
         }
 
-        if err := server.ListenAndServe(); nil != err {
-            log.Fatalf("%s: %v", os.Args[0], err)
-        }
+        log.Fatalf("%s: %v", os.Args[0], server.ListenAndServe())
     } // main()
 
 So you just have to find a way the get/set the name of the desired `logfile` – e.g. via a commandline option, or an environment variable, or a config file, whatever suits you best.
@@ -77,13 +75,19 @@ It means you can now use all the logfile analysers etc. for Apache logs for your
 As _**privacy**_ becomes a serious concern for a growing number of people (including law makers) – the IP address is definitely to be considered as _personal data_ – this logging facility _anonymises_ the requesting users by setting the host-part of the respective remote address to zero (`0`).
 This option takes care of e.g. European servers who may _not without explicit consent_ of the users store personal data; this includes IP addresses in logfiles and elsewhere (eg. statistical data gathered from logfiles).
 
-While the logging of web-requests is done fully automatic you can _manually add entries_ to the logfile by calling
+While the logging of web-requests is done automatically you can _manually add entries_ to the logfile by calling
 
     apachelogger.Log(aSender, aMessage string)
 
 The `aSender` argument should give some indication of from where in your program you're calling the function, and `aMessage` is the text you want to write to the logfile.
 To preserve the format of the log-entry neither `aSender` nor `aMessage` should contain double-quotes (`"`).
 The messages are logged as coming from `127.0.0.1` with an user-agent of `mwat56/apachelogger`; this should make it easy to find these messages amongst all the 'normal' ones.
+
+If you want to log your server's errors as well you can call
+
+	apachelogger.SetErrLog(aServer *http.Server)
+
+during initialisation of your program.
 
 To avoid that a `panic` crashes your program this modules catches and `recover`s such situations.
 The error/cause of the `panic` is written to the logfile for later inspection.
