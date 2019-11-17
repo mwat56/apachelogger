@@ -197,11 +197,14 @@ const (
 )
 
 var (
+	// Channel to send log-messages to and read messages from.
+	alAccessQueue = make(chan string, 127)
+
 	// Name of current user (used by `goCustomLog()`).
 	alCurrentUser string = "-"
 
 	// Channel to send log-messages to and read messages from.
-	alMsgQueue = make(chan string, 127)
+	alErrorQueue = make(chan string, 127)
 )
 
 // `goCustomLog()` sends a custom log message on behalf of `Log()`.
@@ -218,7 +221,7 @@ func goCustomLog(aSender, aMessage string, aTime time.Time) {
 	}
 
 	// build the log string and send it to the channel:
-	alMsgQueue <- fmt.Sprintf(alApacheFormatPattern,
+	alAccessQueue <- fmt.Sprintf(alApacheFormatPattern,
 		"127.0.0.1",
 		alCurrentUser,
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
@@ -245,7 +248,7 @@ func goStandardLog(aLogger *tLogWriter, aRequest *http.Request) {
 	}
 
 	// build the log string and send it to the channel:
-	alMsgQueue <- fmt.Sprintf(alApacheFormatPattern,
+	alAccessQueue <- fmt.Sprintf(alApacheFormatPattern,
 		getRemote(aRequest),
 		getUsername(aRequest.URL),
 		aLogger.when.Format("02/Jan/2006:15:04:05 -0700"),
@@ -327,6 +330,21 @@ func init() {
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
+// Close teminates the logging.
+//
+// This function should be called directly before terminating your program.
+func Close() {
+	defer func() {
+		_ = recover()
+	}()
+
+	close(alAccessQueue)
+	time.Sleep(time.Millisecond)
+
+	close(alErrorQueue)
+	time.Sleep(time.Millisecond)
+} // Close()
+
 // Log writes `aMessage` on behalf of `aSender` to the logfile.
 //
 //	`aSender` The name/designation of the sending entity.
@@ -360,7 +378,7 @@ func Wrap(aHandler http.Handler, aAccessLog string) http.Handler {
 		}
 
 		// start the background writer:
-		go goWrite(aAccessLog, alMsgQueue)
+		go goWrite(aAccessLog, alAccessQueue)
 	})
 
 	return http.HandlerFunc(
