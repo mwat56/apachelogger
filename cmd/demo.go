@@ -23,19 +23,23 @@ func myHandler(aWriter http.ResponseWriter, aRequest *http.Request) {
 } // myHandler()
 
 func main() {
-	// the filename should be taken from the commandline or a config file:
-	logfile := "/dev/stderr"
+	// the filenames should be taken from the commandline or a config file:
+	accessLog := "/dev/stdout"
+	errorLog := "/dev/stderr"
 
 	pageHandler := http.NewServeMux()
 	pageHandler.HandleFunc("/", myHandler)
 
 	server := http.Server{
 		Addr:    "127.0.0.1:8080",
-		Handler: apachelogger.Wrap(pageHandler, logfile),
+		Handler: apachelogger.Wrap(pageHandler, accessLog, errorLog),
 	}
 	apachelogger.SetErrLog(&server)
 
-	log.Fatalf("%s: %v", os.Args[0], server.ListenAndServe())
+	if err := server.ListenAndServe(); nil != err {
+		apachelogger.Close()
+		log.Fatalf("%s: %v", os.Args[0], err)
+	}
 } // main()
 
 /* _EoF_ */
