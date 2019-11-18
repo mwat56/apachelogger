@@ -25,6 +25,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -85,9 +86,8 @@ type (
 func (ll tLogLog) Write(aData []byte) (int, error) {
 	dl := len(aData)
 	if 0 < dl {
-		// To return fast to the caller we perform the actual
-		// writing to the logfile in background:
-		go goCustomLog(`errorLogger`, string(aData), time.Now())
+		// Write to the error logfile in background:
+		go goCustomLog(`errorLogger`, string(aData), time.Now(), alErrorQueue)
 	}
 
 	return dl, nil
@@ -197,18 +197,21 @@ const (
 )
 
 var (
-	// Channel to send log-messages to and read messages from.
-	alAccessQueue = make(chan string, 127)
+	// Channel to send access log messages to and read messages from.
+	alAccessQueue = make(chan string, 7)
 
 	// Name of current user (used by `goCustomLog()`).
 	alCurrentUser string = "-"
 
-	// Channel to send log-messages to and read messages from.
-	alErrorQueue = make(chan string, 127)
+	// Channel to send error log messages to and read messages from.
+	alErrorQueue = make(chan string, 7)
 )
 
 // `goCustomLog()` sends a custom log message on behalf of `Log()`.
-func goCustomLog(aSender, aMessage string, aTime time.Time) {
+func goCustomLog(aSender, aMessage string, aTime time.Time, aLogChannel chan<- string) {
+	defer func() {
+		recover() // panic: send on closed channel
+	}()
 	if 0 == len(aSender) {
 		aSender = filepath.Base(os.Args[0])
 	}
@@ -221,7 +224,7 @@ func goCustomLog(aSender, aMessage string, aTime time.Time) {
 	}
 
 	// build the log string and send it to the channel:
-	alAccessQueue <- fmt.Sprintf(alApacheFormatPattern,
+	aLogChannel <- fmt.Sprintf(alApacheFormatPattern,
 		"127.0.0.1",
 		alCurrentUser,
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
@@ -235,20 +238,30 @@ func goCustomLog(aSender, aMessage string, aTime time.Time) {
 	)
 } // goCustomLog()
 
+// `goIgnoreLog()` just reads from `aMsgSource` ignoring the values.
+func goIgnoreLog(aMsgSource <-chan string) {
+	for range aMsgSource {
+		runtime.Gosched()
+	}
+} // goIgnoreLog()
+
 // `goStandardLog()` prepares the actual background logging.
 //
 // This function is called once for each request.
 //
 //	`aLogger` is the handler of log messages.
 //	`aRequest` represents an HTTP request received by the server.
-func goStandardLog(aLogger *tLogWriter, aRequest *http.Request) {
+func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aLogChannel chan<- string) {
+	defer func() {
+		recover() // panic: send on closed channel
+	}()
 	agent := aRequest.UserAgent()
 	if 0 == len(agent) {
 		agent = "-"
 	}
 
 	// build the log string and send it to the channel:
-	alAccessQueue <- fmt.Sprintf(alApacheFormatPattern,
+	aLogChannel <- fmt.Sprintf(alApacheFormatPattern,
 		getRemote(aRequest),
 		getUsername(aRequest.URL),
 		aLogger.when.Format("02/Jan/2006:15:04:05 -0700"),
@@ -268,91 +281,97 @@ var (
 	alOpenFlags = os.O_CREATE | os.O_APPEND | os.O_WRONLY
 )
 
-// `goWrite()` performs the actual file write.
+// `goWriteLog()` performs the actual file write.
 //
 // This function is run only once, handling all write requests.
 //
-//	`aAccessLog` The name of the access logfile to write to.
-//	`aSource` The source of log messages to write.
-func goWrite(aAccessLog string, aSource <-chan string) {
+//	`aMsgLog` The name of the logfile to write to.
+//	`aMsgSource` The source of log messages to write.
+func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 	var (
-		err  error
-		file *os.File
+		closeTimer *time.Timer
+		err        error
+		logFile    *os.File
 	)
 	defer func() {
-		if nil != file {
-			_ = file.Close()
+		// try to avoid ressource leaks
+		if nil != logFile {
+			_ = logFile.Close()
+		}
+		if nil != closeTimer {
+			_ = closeTimer.Stop()
 		}
 	}()
 
 	time.Sleep(time.Second) // let the application initialise
-	timer := time.NewTimer(time.Minute)
+	closeTimer = time.NewTimer(time.Minute)
 
-	for { // wait for strings to write
+	for { // wait for strings to log/write
 		select {
-		case txt, more := <-aSource:
+		case txt, more := <-aMsgSource:
 			if !more { // channel closed
 				return
 			}
-			if nil == file {
+			if nil == logFile {
 				for {
-					if file, err = os.OpenFile(aAccessLog, alOpenFlags, 0640); /* #nosec G302 */ nil == err {
+					if logFile, err = os.OpenFile(aMsgLog, alOpenFlags, 0640); /* #nosec G302 */ nil == err {
 						break
 					}
 					time.Sleep(time.Millisecond)
 				}
-				// fmt.Fprintln(file, `OPEN -`, time.Now().Format("[02/Jan/2006:15:04:05 -0700]")) //TODO REMOVE
 			}
-			fmt.Fprint(file, txt)
+			fmt.Fprint(logFile, txt)
 
-			// handle the waiting messsages
-			for cLen := len(aSource); 0 < cLen; cLen-- {
-				fmt.Fprint(file, <-aSource)
+			// handle waiting messsages (if any)
+			for cLen := len(aMsgSource); 0 < cLen; cLen-- {
+				fmt.Fprint(logFile, <-aMsgSource)
 			}
 
-		case <-timer.C:
-			if nil != file {
-				// fmt.Fprintln(file, `CLOSE -`, time.Now().Format("[02/Jan/2006:15:04:05 -0700]")) //TODO REMOVE
-				_ = file.Close()
-				file = nil
+		case <-closeTimer.C:
+			if nil != logFile {
+				_ = logFile.Close()
+				logFile = nil
 			}
-			timer.Reset(time.Minute)
+			closeTimer.Reset(time.Minute)
 
 		}
 	}
-} // goWrite()
-
-func init() {
-	if usr, err := user.Current(); (nil == err) && (0 < len(usr.Username)) {
-		alCurrentUser = usr.Username
-	}
-} // init()
+} // goWriteLog()
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-// Close teminates the logging.
+// Close terminates the logging.
 //
 // This function should be called directly before terminating your program.
 func Close() {
 	defer func() {
-		_ = recover()
+		recover() // panic: send on closed channel
 	}()
+	// This function is running in the context of `main.main()`;
+	// sleeping here should give `goWrite()` the chance to finish log entries.
+	time.Sleep(time.Millisecond)
 
 	close(alAccessQueue)
-	time.Sleep(time.Millisecond)
+	time.Sleep(time.Millisecond) // time to exit `goWrite()`
 
 	close(alErrorQueue)
 	time.Sleep(time.Millisecond)
 } // Close()
 
-// Log writes `aMessage` on behalf of `aSender` to the logfile.
+// Err writes `aMessage` on behalf of `aSender` to the error logfile.
 //
 //	`aSender` The name/designation of the sending entity.
-//	`aMessage` The text to write to the logfile.
+//	`aMessage` The text to write to the error logfile.
+func Err(aSender, aMessage string) {
+	go goCustomLog(aSender, aMessage, time.Now(), alErrorQueue)
+} // Err()
+
+// Log writes `aMessage` on behalf of `aSender` to the access logfile.
+//
+//	`aSender` The name/designation of the sending entity.
+//	`aMessage` The text to write to the access logfile.
 func Log(aSender, aMessage string) {
-	// To return fast to the caller we perform the actual
-	// writing to the logfile in background:
-	go goCustomLog(aSender, aMessage, time.Now())
+	go goCustomLog(aSender, aMessage, time.Now(), alAccessQueue)
 } // Log()
 
 // Wrap returns a handler function that includes logging, wrapping
@@ -366,19 +385,50 @@ func Log(aSender, aMessage string) {
 //
 //	`aHandler` responds to the actual HTTP request.
 //	`aAccessLog` is the name of the file to use for access log messages.
-func Wrap(aHandler http.Handler, aAccessLog string) http.Handler {
+//	`aErrorLog` is the name of the file to use for error log messages.
+func Wrap(aHandler http.Handler, aAccessLog, aErrorLog string) http.Handler {
 	var (
 		doOnce sync.Once
 	)
 	doOnce.Do(func() {
-		file, err := os.OpenFile(aAccessLog, alOpenFlags, 0640) // #nosec G302
-		_ = file.Close()
-		if nil != err {
-			log.Fatalf("%s can't open logfile: %v", os.Args[0], err)
+		if usr, err := user.Current(); (nil == err) && (0 < len(usr.Username)) {
+			alCurrentUser = usr.Username
 		}
 
-		// start the background writer:
-		go goWrite(aAccessLog, alAccessQueue)
+		if 0 < len(aAccessLog) {
+			absFile, _ := filepath.Abs(aAccessLog)
+			aAccessLog = absFile
+		}
+		if 0 < len(aAccessLog) {
+			accessFile, err := os.OpenFile(aAccessLog, alOpenFlags, 0640) // #nosec G302
+			_ = accessFile.Close()
+			if nil != err {
+				log.Fatalf("%s can't open access logfile: %v", os.Args[0], err)
+			}
+			go goWriteLog(aAccessLog, alAccessQueue)
+		} else {
+			go goIgnoreLog(alAccessQueue)
+		}
+
+		if 0 < len(aErrorLog) {
+			absFile, _ := filepath.Abs(aErrorLog)
+			aErrorLog = absFile
+		}
+		if 0 < len(aErrorLog) {
+			if aErrorLog == aAccessLog {
+				close(alErrorQueue)
+				alErrorQueue = alAccessQueue
+			} else {
+				errorFile, err := os.OpenFile(aErrorLog, alOpenFlags, 0640) // #nosec G302
+				_ = errorFile.Close()
+				if nil != err {
+					log.Fatalf("%s can't open error logfile: %v", os.Args[0], err)
+				}
+				go goWriteLog(aErrorLog, alErrorQueue)
+			}
+		} else {
+			go goIgnoreLog(alErrorQueue)
+		}
 	})
 
 	return http.HandlerFunc(
@@ -386,15 +436,14 @@ func Wrap(aHandler http.Handler, aAccessLog string) http.Handler {
 			defer func() {
 				// make sure a `panic` won't kill the program
 				if err := recover(); err != nil {
-					go goCustomLog("errorLogger",
-						fmt.Sprintf("caught panic: %v", err), time.Now())
+					go goCustomLog("errorLogger", fmt.Sprintf("caught panic: %v", err), time.Now(), alErrorQueue)
 				}
 			}()
 			lw := &tLogWriter{aWriter, 0, 0, time.Now()}
 			aHandler.ServeHTTP(lw, aRequest)
 
 			// run the log-entry formatter:
-			go goStandardLog(lw, aRequest)
+			go goStandardLog(lw, aRequest, alAccessQueue)
 		})
 } // Wrap()
 
