@@ -119,29 +119,25 @@ func Test_getUsername(t *testing.T) {
 } // Test_getUsername()
 
 func Benchmark_goWrite(b *testing.B) {
-	var s string
 	go goWriteLog("/dev/stdout", alAccessQueue)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		for i := 1; i < 100; i++ {
-			s = fmt.Sprintf("%02d%02d ", n, i)
-			Log("Benchmark_goWrite", strings.Repeat(s, 20))
+			Log("Benchmark_goWrite", strings.Repeat(fmt.Sprintf("%02d%02d ", n, i), 20))
 		}
 	}
 	Close()
 } // Benchmark_goWrite()
 
 func Benchmark_goCustomLog(b *testing.B) {
-	var s string
 	go goWriteLog("/dev/stderr", alErrorQueue)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		for i := 1; i < 100; i++ {
-			s = fmt.Sprintf("%02d%02d sender", n, i)
-			go goCustomLog(s, "", time.Now(), alErrorQueue)
+			go goCustomLog("Benchmark_goCustomLog", fmt.Sprintf("%02d%02d", n, i), time.Now(), alErrorQueue)
 		}
 	}
 	Close()
-} // ()
+} // Benchmark_goCustomLog()
