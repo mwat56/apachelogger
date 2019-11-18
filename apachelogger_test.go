@@ -6,6 +6,8 @@
 
 package apachelogger
 
+//lint:file-ignore ST1017 – I prefer Yoda conditions
+
 import (
 	"fmt"
 	"net/http"
@@ -88,6 +90,7 @@ func Test_getRemote(t *testing.T) {
 			}
 		})
 	}
+	Close()
 } // Test_getRemote()
 
 func Test_getUsername(t *testing.T) {
@@ -117,26 +120,28 @@ func Test_getUsername(t *testing.T) {
 
 func Benchmark_goWrite(b *testing.B) {
 	var s string
-	go goWrite("/dev/stderr", alMsgQueue)
+	go goWriteLog("/dev/stdout", alAccessQueue)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		for i := 1; i < 100; i++ {
 			s = fmt.Sprintf("%02d%02d ", n, i)
-			alMsgQueue <- strings.Repeat(s, 20) + "\n"
+			Log("Benchmark_goWrite", strings.Repeat(s, 20))
 		}
 	}
+	Close()
 } // Benchmark_goWrite()
 
 func Benchmark_goCustomLog(b *testing.B) {
 	var s string
-	go goWrite("/dev/stderr", alMsgQueue)
+	go goWriteLog("/dev/stderr", alErrorQueue)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
 		for i := 1; i < 100; i++ {
 			s = fmt.Sprintf("%02d%02d sender", n, i)
-			goCustomLog(s, "", time.Now())
+			go goCustomLog(s, "", time.Now(), alErrorQueue)
 		}
 	}
+	Close()
 } // ()
