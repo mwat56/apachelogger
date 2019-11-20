@@ -29,31 +29,36 @@ You can use `Go` to install this package for you:
 
 ## Usage
 
-To include the automatic logging facility you just call the `Wrap()` function (which is one of only two exported functions of this little package) as shown here:
+To include the automatic logging facility you just call the `Wrap()` function as shown here:
 
-    func main() {
-        // the filename should be taken from the commandline or a config file:
-        logfile := "/dev/stderr"
+	func main() {
+		// the filenames should be taken from the commandline
+		// or a config file:
+		accessLog := "/dev/stdout"
+		errorLog := "/dev/stderr"
 
-        pageHandler := http.NewServeMux()
-        pageHandler.HandleFunc("/", myHandler)
+		pageHandler := http.NewServeMux()
+		pageHandler.HandleFunc("/", myHandler)
 
-        server := http.Server{
-            Addr:    "127.0.0.1:8080",
-            Handler: apachelogger.Wrap(pageHandler, logfile),
-            //       ^^^^^^^^^^^^^^^^^^
-        }
+		server := http.Server{
+			Addr:    "127.0.0.1:8080",
+			Handler: apachelogger.Wrap(pageHandler, accessLog, errorLog),
+			//       ^^^^^^^^^^^^^^^^^^
+		}
+		apachelogger.SetErrLog(&server)
 
-        log.Fatalf("%s: %v", os.Args[0], server.ListenAndServe())
-    } // main()
+		if err := server.ListenAndServe(); nil != err {
+			apachelogger.Close()
+			log.Fatalf("%s: %v", os.Args[0], err)
+		}
+	} // main()
 
-So you just have to find a way the get/set the name of the desired `logfile` – e.g. via a commandline option, or an environment variable, or a config file, whatever suits you best.
+So you just have to find a way the get/set the name of the desired logfiles – e.g. via a commandline option, or an environment variable, or a config file, whatever suits you best.
 Then you setup your `server` like shown above using the call to `apachelogger.Wrap()` to wrap your original pagehandler with the logging facility.
-That's all.
 
 The creation pattern for a logfile entry is this:
 
-    apacheFormatPattern = `%s - %s [%s] "%s %s %s" %d %d "%s" "%s"`
+	apacheFormatPattern = `%s - %s [%s] "%s %s %s" %d %d "%s" "%s"`
 
 All the placeholders to be seen in the pattern will be filled in with the appropriate values at runtime which are (in order of appearance):
 
@@ -83,14 +88,26 @@ The `aSender` argument should give some indication of from where in your program
 To preserve the format of the log-entry neither `aSender` nor `aMessage` should contain double-quotes (`"`).
 The messages are logged as coming from `127.0.0.1` with an user-agent of `mwat56/apachelogger`; this should make it easy to find these messages amongst all the 'normal' ones.
 
-If you want to log your server's errors as well you can call
+If you want to automatically log your server's errors as well you'd call
 
 	apachelogger.SetErrLog(aServer *http.Server)
 
 during initialisation of your program.
+This will write the errors thrown by the server to the errorlog passed to the `Wrap()` function.
+Additionally you can call
 
-To avoid that a `panic` crashes your program this modules catches and `recover`s such situations.
-The error/cause of the `panic` is written to the logfile for later inspection.
+    apachelogger.Err(aSender, aMessage string)
+
+from your own code to write a message to the error log.
+
+If you want to finish the logging altogether you'd call
+
+	apachelogger.Close()
+
+Usually you'd only call this function after your server terminated; it's not possible to restart the logging after calling `Close()`.
+
+To avoid that a `panic` crashes your program this module catches and `recover`s such situations.
+The error/cause of the `panic` is written to the error logfile for later inspection.
 
 ## Licence
 
