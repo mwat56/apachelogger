@@ -26,6 +26,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -436,7 +437,7 @@ func Wrap(aHandler http.Handler, aAccessLog, aErrorLog string) http.Handler {
 			defer func() {
 				// make sure a `panic` won't kill the program
 				if err := recover(); err != nil {
-					go goCustomLog("errorLogger", fmt.Sprintf("caught panic: %v", err), time.Now(), alErrorQueue)
+					go goCustomLog("errorLogger", fmt.Sprintf("caught panic: %v – %s", err, debug.Stack()), time.Now(), alErrorQueue)
 				}
 			}()
 			lw := &tLogWriter{aWriter, 0, 0, time.Now()}
