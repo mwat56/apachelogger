@@ -277,6 +277,10 @@ func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aLogChannel chan
 	aLogger.status, aLogger.size = 0, 0
 } // goStandardLog()
 
+const (
+	threeSex = 3 * time.Second
+)
+
 var (
 	// Mode of opening the logfile(s).
 	alOpenFlags = os.O_CREATE | os.O_APPEND | os.O_WRONLY
@@ -305,7 +309,7 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 	}()
 
 	time.Sleep(time.Second) // let the application initialise
-	closeTimer = time.NewTimer(time.Minute)
+	closeTimer = time.NewTimer(threeSex)
 
 	for { // wait for strings to log/write
 		select {
@@ -323,17 +327,18 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 			}
 			fmt.Fprint(logFile, txt)
 
-			// handle waiting messsages (if any)
+			// handle waiting messages (if any)
 			for cLen := len(aMsgSource); 0 < cLen; cLen-- {
 				fmt.Fprint(logFile, <-aMsgSource)
 			}
+			closeTimer.Reset(threeSex)
 
 		case <-closeTimer.C:
 			if nil != logFile {
 				_ = logFile.Close()
 				logFile = nil
 			}
-			closeTimer.Reset(time.Minute)
+			closeTimer.Reset(threeSex)
 
 		}
 	}
