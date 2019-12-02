@@ -136,7 +136,7 @@ func Benchmark_goCustomLog(b *testing.B) {
 
 	for n := 0; n < b.N; n++ {
 		for i := 1; i < 100; i++ {
-			go goCustomLog("Benchmark_goCustomLog", fmt.Sprintf("%02d%02d", n, i), time.Now(), alErrorQueue)
+			go goCustomLog("Benchmark_goCustomLog", fmt.Sprintf("%02d%02d", n, i), `TEST`, time.Now(), alErrorQueue)
 		}
 	}
 	Close()

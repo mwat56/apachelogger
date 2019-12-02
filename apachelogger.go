@@ -81,17 +81,18 @@ type (
 	tLogLog struct{}
 )
 
-// Write sends `aData` to the log file.
+// Write sends `aMessage` from the running server to the log file.
+// It returns the numer of bytes written and `nil`.
 //
-//	`aData` The error text to log.
-func (ll tLogLog) Write(aData []byte) (int, error) {
-	dl := len(aData)
-	if 0 < dl {
+//	`aMessage` The error text to log.
+func (ll tLogLog) Write(aMessage []byte) (int, error) {
+	ml := len(aMessage)
+	if 0 < ml {
 		// Write to the error logfile in background:
-		go goCustomLog(`errorLogger`, string(aData), time.Now(), alErrorQueue)
+		go goCustomLog(`errorLogger`, string(aMessage), `ERR`, time.Now(), alErrorQueue)
 	}
 
-	return dl, nil
+	return ml, nil
 } // Write()
 
 // SetErrLog sets the error logger of `aServer`.
@@ -209,7 +210,13 @@ var (
 )
 
 // `goCustomLog()` sends a custom log message on behalf of `Log()`.
-func goCustomLog(aSender, aMessage string, aTime time.Time, aLogChannel chan<- string) {
+//
+//	`aSender` Identification of the message's sender.
+//	`aMessage` The message to write to the logfile.
+//	`aPrefix` A prefix for the log message (either `LOG` or `ERR`).
+//	`aTime` The time to log.
+//	`aLogChannel` The channel to send the message to.
+func goCustomLog(aSender, aMessage, aPrefix string, aTime time.Time, aLogChannel chan<- string) {
 	defer func() {
 		recover() // panic: send on closed channel
 	}()
@@ -229,7 +236,7 @@ func goCustomLog(aSender, aMessage string, aTime time.Time, aLogChannel chan<- s
 		"127.0.0.1",
 		alCurrentUser,
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
-		"LOG",
+		aPrefix,
 		aMessage,
 		"HTTP/1.0",
 		500,
@@ -369,7 +376,7 @@ func Close() {
 //	`aSender` The name/designation of the sending entity.
 //	`aMessage` The text to write to the error logfile.
 func Err(aSender, aMessage string) {
-	go goCustomLog(aSender, aMessage, time.Now(), alErrorQueue)
+	go goCustomLog(aSender, aMessage, `ERR`, time.Now(), alErrorQueue)
 } // Err()
 
 // Log writes `aMessage` on behalf of `aSender` to the access logfile.
@@ -377,7 +384,7 @@ func Err(aSender, aMessage string) {
 //	`aSender` The name/designation of the sending entity.
 //	`aMessage` The text to write to the access logfile.
 func Log(aSender, aMessage string) {
-	go goCustomLog(aSender, aMessage, time.Now(), alAccessQueue)
+	go goCustomLog(aSender, aMessage, `LOG`, time.Now(), alAccessQueue)
 } // Log()
 
 // Wrap returns a handler function that includes logging, wrapping
@@ -442,7 +449,7 @@ func Wrap(aHandler http.Handler, aAccessLog, aErrorLog string) http.Handler {
 			defer func() {
 				// make sure a `panic` won't kill the program
 				if err := recover(); err != nil {
-					go goCustomLog("errorLogger", fmt.Sprintf("caught panic: %v – %s", err, debug.Stack()), time.Now(), alErrorQueue)
+					go goCustomLog("errorLogger", fmt.Sprintf("caught panic: %v – %s", err, debug.Stack()), `ERR`, time.Now(), alErrorQueue)
 				}
 			}()
 			lw := &tLogWriter{aWriter, 0, 0, time.Now()}
