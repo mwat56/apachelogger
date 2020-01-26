@@ -54,7 +54,7 @@ To include the automatic logging facility you just call the `Wrap()` function as
 	} // main()
 
 So you just have to find a way the get/set the name of the desired logfiles – e.g. via a commandline option, or an environment variable, or a config file, whatever suits you best.
-Then you setup your `server` like shown above using the call to `apachelogger.Wrap()` to wrap your original pagehandler with the logging facility.
+Then you set up your `server` like shown above using the call to `apachelogger.Wrap()` to wrap your original pagehandler with the logging facility.
 
 The creation pattern for a logfile entry is this:
 
@@ -111,7 +111,7 @@ The error/cause of the `panic` is written to the error logfile for later inspect
 
 ## Licence
 
-        Copyright © 2019 M.Watermann, 10247 Berlin, Germany
+        Copyright © 2019, 2020 M.Watermann, 10247 Berlin, Germany
                         All rights reserved
                     EMail : <support@mwat.de>
 

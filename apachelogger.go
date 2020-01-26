@@ -1,5 +1,5 @@
 /*
-   Copyright © 2019 M.Watermann, 10247 Berlin, Germany
+   Copyright © 2019, 2020 M.Watermann, 10247 Berlin, Germany
                    All rights reserved
                EMail : <support@mwat.de>
 */
@@ -68,7 +68,7 @@ func (lw *tLogWriter) Write(aData []byte) (int, error) {
 //
 // Part of the `http.ResponseWriter` interface.
 //
-//	`aStatus` is the request's funal result code.
+//	`aStatus` is the request's final result code.
 func (lw *tLogWriter) WriteHeader(aStatus int) {
 	lw.status = aStatus
 	lw.ResponseWriter.WriteHeader(aStatus)
@@ -77,12 +77,12 @@ func (lw *tLogWriter) WriteHeader(aStatus int) {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 type (
-	// Simple structure implemening the `Writer` interface.
+	// Simple structure implementing the `Writer` interface.
 	tLogLog struct{}
 )
 
 // Write sends `aMessage` from the running server to the log file.
-// It returns the numer of bytes written and `nil`.
+// It returns the number of bytes written and `nil`.
 //
 //	`aMessage` The error text to log.
 func (ll tLogLog) Write(aMessage []byte) (int, error) {
@@ -306,7 +306,7 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 		logFile    *os.File
 	)
 	defer func() {
-		// try to avoid ressource leaks
+		// try to avoid resource leaks
 		if nil != logFile {
 			_ = logFile.Close()
 		}
