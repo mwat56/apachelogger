@@ -218,7 +218,7 @@ var (
 //	`aLogChannel` The channel to send the message to.
 func goCustomLog(aSender, aMessage, aPrefix string, aTime time.Time, aLogChannel chan<- string) {
 	defer func() {
-		recover() // panic: send on closed channel
+		_ = recover() // panic: send on closed channel
 	}()
 	if 0 == len(aSender) {
 		aSender = filepath.Base(os.Args[0])
@@ -261,7 +261,7 @@ func goIgnoreLog(aMsgSource <-chan string) {
 //	`aRequest` represents an HTTP request received by the server.
 func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aLogChannel chan<- string) {
 	defer func() {
-		recover() // panic: send on closed channel
+		_ = recover() // panic: send on closed channel
 	}()
 	agent := aRequest.UserAgent()
 	if 0 == len(agent) {
@@ -358,7 +358,7 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 // This function should be called directly before terminating your program.
 func Close() {
 	defer func() {
-		recover() // panic: send on closed channel
+		_ = recover() // panic: send on closed channel
 	}()
 	// This function is running in the context of `main.main()`;
 	// sleeping here should give `goWriteLog()` the chance to finish
