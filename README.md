@@ -16,6 +16,8 @@
 	- [Special Features](#special-features)
 	- [Licence](#licence)
 
+----
+
 ## Purpose
 
 This package can be used to add a logfile facility to your `Go` web-server.
@@ -124,3 +126,5 @@ No external libraries were used building `ApacheLogger`.
 > This software is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
 >
 > You should have received a copy of the GNU General Public License along with this program. If not, see the [GNU General Public License](http://www.gnu.org/licenses/gpl.html) for details.
+
+----
