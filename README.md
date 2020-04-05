@@ -109,6 +109,10 @@ Usually you'd only call this function after your server terminated; it's not pos
 To avoid that a `panic` crashes your program this module catches and `recover`s such situations.
 The error/cause of the `panic` is written to the error logfile for later inspection.
 
+## Libraries
+
+No external libraries were used building `ApacheLogger`.
+
 ## Licence
 
         Copyright © 2019, 2020 M.Watermann, 10247 Berlin, Germany
