@@ -200,13 +200,13 @@ const (
 
 var (
 	// Channel to send access log messages to and read messages from.
-	alAccessQueue = make(chan string, 7)
+	alAccessQueue = make(chan string, 127)
 
 	// Name of current user (used by `goCustomLog()`).
 	alCurrentUser string = "-"
 
 	// Channel to send error log messages to and read messages from.
-	alErrorQueue = make(chan string, 7)
+	alErrorQueue = make(chan string, 127)
 )
 
 // `goCustomLog()` sends a custom log message on behalf of `Log()`.
@@ -290,7 +290,7 @@ const (
 
 var (
 	// Mode of opening the logfile(s).
-	alOpenFlags = os.O_CREATE | os.O_APPEND | os.O_WRONLY
+	alOpenFlags = os.O_CREATE | os.O_APPEND | os.O_WRONLY | os.O_SYNC
 )
 
 // `goWriteLog()` performs the actual file write.
@@ -301,7 +301,7 @@ var (
 //	`aMsgSource` The source of log messages to write.
 func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 	var (
-		closeTimer *time.Timer
+		fileCloser *time.Timer
 		err        error
 		logFile    *os.File
 	)
@@ -310,13 +310,13 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 		if nil != logFile {
 			_ = logFile.Close()
 		}
-		if nil != closeTimer {
-			_ = closeTimer.Stop()
+		if nil != fileCloser {
+			_ = fileCloser.Stop()
 		}
 	}()
 
-	time.Sleep(time.Second) // let the application initialise
-	closeTimer = time.NewTimer(threeSex)
+	time.Sleep(threeSex) // let the application initialise
+	fileCloser = time.NewTimer(threeSex)
 
 	for { // wait for strings to log/write
 		select {
@@ -329,24 +329,17 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 					if logFile, err = os.OpenFile(aMsgLog, alOpenFlags, 0640); /* #nosec G302 */ nil == err {
 						break
 					}
-					time.Sleep(time.Millisecond)
 				}
 			}
 			fmt.Fprint(logFile, txt)
+			fileCloser.Reset(threeSex)
 
-			// handle waiting messages (if any)
-			for cLen := len(aMsgSource); 0 < cLen; cLen-- {
-				fmt.Fprint(logFile, <-aMsgSource)
-			}
-			closeTimer.Reset(threeSex)
-
-		case <-closeTimer.C:
+		case <-fileCloser.C:
 			if nil != logFile {
 				_ = logFile.Close()
 				logFile = nil
 			}
-			closeTimer.Reset(threeSex)
-
+			fileCloser.Reset(threeSex)
 		}
 	}
 } // goWriteLog()
