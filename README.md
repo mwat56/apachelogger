@@ -14,6 +14,7 @@
 	- [Installation](#installation)
 	- [Usage](#usage)
 	- [Special Features](#special-features)
+	- [Libraries](#libraries)
 	- [Licence](#licence)
 
 ----
@@ -55,7 +56,7 @@ To include the automatic logging facility you just call the `Wrap()` function as
 		}
 	} // main()
 
-So you just have to find a way the get/set the name of the desired logfiles – e.g. via a commandline option, or an environment variable, or a config file, whatever suits you best.
+So you just have to find a way the get/set the name of the desired logfile names – e.g. via a commandline option, or an environment variable, or a config file, whatever suits you best.
 Then you set up your `server` like shown above using the call to `apachelogger.Wrap()` to wrap your original pagehandler with the logging facility.
 
 The creation pattern for a logfile entry is this:
@@ -106,7 +107,7 @@ If you want to finish the logging altogether you'd call
 
 	apachelogger.Close()
 
-Usually you'd only call this function after your server terminated; it's not possible to restart the logging after calling `Close()`.
+Usually you'd only call this function when your server terminates; it's not possible to restart the logging after calling `Close()`.
 
 To avoid that a `panic` crashes your program this module catches and `recover`s such situations.
 The error/cause of the `panic` is written to the error logfile for later inspection.

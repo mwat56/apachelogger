@@ -34,14 +34,15 @@ import (
 
 var (
 	// AnonymiseURLs decides whether to anonymise the remote URLs
-	// (default: `true`).
+	// before writing them to the logfile (default: `true`).
 	//
-	// For legal reasons this variable should always stay `true`.
+	// For privacy and legal reasons this variable should always
+	// stay `true`.
 	AnonymiseURLs = true
 )
 
 type (
-	// `tLogWriter` embeds a `ResponseWriter` and includes log-to-file.
+	// `tLogWriter` embeds a `ResponseWriter` and provides log-to-file.
 	tLogWriter struct {
 		http.ResponseWriter           // used to construct the HTTP response
 		size                int       // the size/length of the data sent
@@ -57,7 +58,7 @@ func (lw *tLogWriter) Write(aData []byte) (int, error) {
 	if 0 == lw.status {
 		lw.status = 200
 	}
-	// Add length of all chunks of data written.
+	// Add length of _all_ chunks of data written.
 	lw.size += len(aData) // We need this value for the logfile.
 
 	return lw.ResponseWriter.Write(aData)
@@ -77,12 +78,14 @@ func (lw *tLogWriter) WriteHeader(aStatus int) {
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 type (
-	// Simple structure implementing the `Writer` interface.
+	// Simple structure implementing the `io.Writer` interface.
 	tLogLog struct{}
 )
 
 // Write sends `aMessage` from the running server to the log file.
 // It returns the number of bytes written and `nil`.
+//
+// Implementing the `io.Writer` interface.
 //
 //	`aMessage` The error text to log.
 func (ll tLogLog) Write(aMessage []byte) (int, error) {
@@ -285,10 +288,8 @@ func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aLogChannel chan
 } // goStandardLog()
 
 const (
-	threeSex = 3 * time.Second
-)
+	alFileCloserDelay = 3 * time.Second
 
-var (
 	// Mode of opening the logfile(s).
 	alOpenFlags = os.O_CREATE | os.O_APPEND | os.O_WRONLY | os.O_SYNC
 )
@@ -315,8 +316,8 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 		}
 	}()
 
-	time.Sleep(threeSex) // let the application initialise
-	fileCloser = time.NewTimer(threeSex)
+	time.Sleep(alFileCloserDelay) // let the application initialise
+	fileCloser = time.NewTimer(alFileCloserDelay)
 
 	for { // wait for strings to log/write
 		select {
@@ -332,14 +333,15 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 				}
 			}
 			fmt.Fprint(logFile, txt)
-			fileCloser.Reset(threeSex)
+			fileCloser.Reset(alFileCloserDelay)
 
 		case <-fileCloser.C:
+			// Nothing logged in three seconds => close the file.
 			if nil != logFile {
 				_ = logFile.Close()
 				logFile = nil
 			}
-			fileCloser.Reset(threeSex)
+			fileCloser.Reset(alFileCloserDelay)
 		}
 	}
 } // goWriteLog()
@@ -351,8 +353,9 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 // This function should be called directly before terminating your program.
 func Close() {
 	defer func() {
-		_ = recover() // panic: send on closed channel
+		_ = recover() // panic: `send on closed channel`
 	}()
+
 	// This function is running in the context of `main.main()`;
 	// sleeping here should give `goWriteLog()` the chance to finish
 	// writing log entries.
@@ -444,7 +447,7 @@ func Wrap(aHandler http.Handler, aAccessLog, aErrorLog string) http.Handler {
 		func(aWriter http.ResponseWriter, aRequest *http.Request) {
 			defer func() {
 				// make sure a `panic` won't kill the program
-				if err := recover(); err != nil {
+				if err := recover(); nil != err {
 					go goCustomLog("errorLogger", fmt.Sprintf("caught panic: %v – %s", err, debug.Stack()), `ERR`, time.Now(), alErrorQueue)
 				}
 			}()
