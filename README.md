@@ -6,8 +6,8 @@
 [![Issues](https://img.shields.io/github/issues/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/issues?q=is%3Aopen+is%3Aissue)
 [![Size](https://img.shields.io/github/repo-size/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/)
 [![Tag](https://img.shields.io/github/tag/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/tags)
-[![License](https://img.shields.io/github/license/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/blob/master/LICENSE)
-[![View examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg)](https://github.com/mwat56/apachelogger/blob/master/cmd/demo.go)
+[![License](https://img.shields.io/github/license/mwat56/apachelogger.svg)](https://github.com/mwat56/apachelogger/blob/main/LICENSE)
+[![View examples](https://img.shields.io/badge/learn%20by-examples-0077b3.svg)](https://github.com/mwat56/apachelogger/blob/main/cmd/demo.go)
 
 - [ApacheLogger](#apachelogger)
 	- [Purpose](#purpose)
