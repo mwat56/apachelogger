@@ -288,7 +288,7 @@ func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aLogChannel chan
 } // goStandardLog()
 
 const (
-	alFileCloserDelay = 3 * time.Second
+	alFileCloserDelay = time.Second << 3 // eight seconds
 
 	// Mode of opening the logfile(s).
 	alOpenFlags = os.O_CREATE | os.O_APPEND | os.O_WRONLY | os.O_SYNC
@@ -302,6 +302,7 @@ const (
 //	`aMsgSource` The source of log messages to write.
 func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 	var (
+		cLen       int
 		fileCloser *time.Timer
 		err        error
 		logFile    *os.File
@@ -319,10 +320,10 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 	time.Sleep(alFileCloserDelay) // let the application initialise
 	fileCloser = time.NewTimer(alFileCloserDelay)
 
-	for { // wait for strings to log/write
+	for { // Wait for strings to log/write
 		select {
 		case txt, more := <-aMsgSource:
-			if !more { // channel closed
+			if !more { // Channel closed
 				return
 			}
 			if nil == logFile {
@@ -333,10 +334,23 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 				}
 			}
 			fmt.Fprint(logFile, txt)
+			if cLen = len(aMsgSource); 0 < cLen {
+				// Batch all waiting messages at once.
+				for txt = range aMsgSource {
+					fmt.Fprint(logFile, txt)
+					cLen--
+					if 0 < cLen {
+						continue
+					}
+					if cLen = len(aMsgSource); 0 == cLen {
+						break
+					}
+				}
+			}
 			fileCloser.Reset(alFileCloserDelay)
 
 		case <-fileCloser.C:
-			// Nothing logged in three seconds => close the file.
+			// Nothing logged in eight seconds => close the file.
 			if nil != logFile {
 				_ = logFile.Close()
 				logFile = nil
