@@ -103,12 +103,6 @@ Additionally you can call
 
 from your own code to write a message to the error log.
 
-If you want to finish the logging altogether you'd call
-
-	apachelogger.Close()
-
-Usually you'd only call this function when your server terminates; it's not possible to restart the logging after calling `Close()`.
-
 To avoid that a `panic` crashes your program this module catches and `recover`s such situations.
 The error/cause of the `panic` is written to the error logfile for later inspection.
 
