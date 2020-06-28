@@ -210,6 +210,9 @@ var (
 
 	// Channel to send error log messages to and read messages from.
 	alErrorQueue = make(chan string, 127)
+
+	// Make sure to initialise the wrapper only once.
+	alWrapOnce sync.Once
 )
 
 // `goCustomLog()` sends a custom log message on behalf of `Log()`.
@@ -362,26 +365,6 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-// Close terminates the logging.
-//
-// This function should be called directly before terminating your program.
-func Close() {
-	defer func() {
-		_ = recover() // panic: `send on closed channel`
-	}()
-
-	// This function is running in the context of `main.main()`;
-	// sleeping here should give `goWriteLog()` the chance to finish
-	// writing log entries.
-	time.Sleep(100 * time.Millisecond)
-
-	close(alAccessQueue)
-	time.Sleep(100 * time.Millisecond) // time to exit `goWriteLog()`
-
-	close(alErrorQueue)
-	time.Sleep(100 * time.Millisecond)
-} // Close()
-
 // Err writes `aMessage` on behalf of `aSender` to the error logfile.
 //
 //	`aSender` The name/designation of the sending entity.
@@ -397,11 +380,6 @@ func Err(aSender, aMessage string) {
 func Log(aSender, aMessage string) {
 	go goCustomLog(aSender, aMessage, `LOG`, time.Now(), alAccessQueue)
 } // Log()
-
-var (
-	// Make sure to initialise the wrapper only once.
-	alWrapOnce sync.Once
-)
 
 // Wrap returns a handler function that includes logging, wrapping
 // the given `aHandler`, and calling it internally.

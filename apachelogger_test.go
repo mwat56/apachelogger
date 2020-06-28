@@ -1,5 +1,5 @@
 /*
-   Copyright © 2019 M.Watermann, 10247 Berlin, Germany
+   Copyright © 2019, 2020 M.Watermann, 10247 Berlin, Germany
                    All rights reserved
                EMail : <support@mwat.de>
 */
@@ -90,7 +90,6 @@ func Test_getRemote(t *testing.T) {
 			}
 		})
 	}
-	Close()
 } // Test_getRemote()
 
 func Test_getUsername(t *testing.T) {
@@ -127,7 +126,6 @@ func Benchmark_goWrite(b *testing.B) {
 			Log("Benchmark_goWrite", strings.Repeat(fmt.Sprintf("%02d%02d ", n, i), 20))
 		}
 	}
-	Close()
 } // Benchmark_goWrite()
 
 func Benchmark_goCustomLog(b *testing.B) {
@@ -139,5 +137,4 @@ func Benchmark_goCustomLog(b *testing.B) {
 			go goCustomLog("Benchmark_goCustomLog", fmt.Sprintf("%02d%02d", n, i), `TEST`, time.Now(), alErrorQueue)
 		}
 	}
-	Close()
 } // Benchmark_goCustomLog()
