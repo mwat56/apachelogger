@@ -306,7 +306,7 @@ const (
 func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 	var (
 		cLen       int
-		fileCloser *time.Timer
+		closeTimer *time.Timer
 		err        error
 		logFile    *os.File
 	)
@@ -315,13 +315,13 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 		if nil != logFile {
 			_ = logFile.Close()
 		}
-		if nil != fileCloser {
-			_ = fileCloser.Stop()
+		if nil != closeTimer {
+			_ = closeTimer.Stop()
 		}
 	}()
 
 	time.Sleep(alFileCloserDelay) // let the application initialise
-	fileCloser = time.NewTimer(alFileCloserDelay)
+	closeTimer = time.NewTimer(alFileCloserDelay)
 
 	for { // Wait for strings to log/write
 		select {
@@ -330,12 +330,15 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 				return
 			}
 			if nil == logFile {
+				// Loop until we actually opened the logfile:
 				for {
 					if logFile, err = os.OpenFile(aMsgLog, alOpenFlags, 0640); /* #nosec G302 */ nil == err {
 						break
 					}
-				}
-			}
+					time.Sleep(1234)
+					closeTimer.Reset(alFileCloserDelay)
+				} // for
+			} // if
 			fmt.Fprint(logFile, txt)
 			if cLen = len(aMsgSource); 0 < cLen {
 				// Batch all waiting messages at once.
@@ -348,19 +351,19 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 					if cLen = len(aMsgSource); 0 == cLen {
 						break
 					}
-				}
-			}
-			fileCloser.Reset(alFileCloserDelay)
+				} // for
+			} // if
+			closeTimer.Reset(alFileCloserDelay)
 
-		case <-fileCloser.C:
+		case <-closeTimer.C:
 			// Nothing logged in eight seconds => close the file.
 			if nil != logFile {
 				_ = logFile.Close()
 				logFile = nil
 			}
-			fileCloser.Reset(alFileCloserDelay)
-		}
-	}
+			closeTimer.Reset(alFileCloserDelay)
+		} // select
+	} // for
 } // goWriteLog()
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
