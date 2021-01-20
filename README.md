@@ -28,7 +28,7 @@ The format of the generated logfile entries resemble those of the popular _Apach
 
 You can use `Go` to install this package for you:
 
-    go get -u github.com/mwat56/apachelogger
+	go get -u github.com/mwat56/apachelogger
 
 ## Usage
 
@@ -83,9 +83,11 @@ It means you can now use all the logfile analysers etc. for Apache logs for your
 As _**privacy**_ becomes a serious concern for a growing number of people (including law makers) – the IP address is definitely to be considered as _personal data_ – this logging facility _anonymises_ the requesting users by setting the host-part of the respective remote address to zero (`0`).
 This option takes care of e.g. European servers who may _not without explicit consent_ of the users store personal data; this includes IP addresses in logfiles and elsewhere (eg. statistical data gathered from logfiles).
 
+For debugging purposes there's a global flag `AnonymiseErrors` (default: `false`) that allows to fully (e.g. not anonymised) log all requests that cause errors (e.g. 4xx and 5xx statuses).
+
 While the logging of web-requests is done automatically you can _manually add entries_ to the logfile by calling
 
-    apachelogger.Log(aSender, aMessage string)
+	apachelogger.Log(aSender, aMessage string)
 
 The `aSender` argument should give some indication of from where in your program you're calling the function, and `aMessage` is the text you want to write to the logfile.
 To preserve the format of the log-entry neither `aSender` nor `aMessage` should contain double-quotes (`"`).
@@ -99,7 +101,7 @@ during initialisation of your program.
 This will write the errors thrown by the server to the errorlog passed to the `Wrap()` function.
 Additionally you can call
 
-    apachelogger.Err(aSender, aMessage string)
+	apachelogger.Err(aSender, aMessage string)
 
 from your own code to write a message to the error log.
 
@@ -112,7 +114,7 @@ No external libraries were used building `ApacheLogger`.
 
 ## Licence
 
-        Copyright © 2019, 2020 M.Watermann, 10247 Berlin, Germany
+        Copyright © 2019, 2021 M.Watermann, 10247 Berlin, Germany
                         All rights reserved
                     EMail : <support@mwat.de>
 

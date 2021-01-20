@@ -1,5 +1,5 @@
 /*
-   Copyright © 2019, 2020 M.Watermann, 10247 Berlin, Germany
+   Copyright © 2019, 2021 M.Watermann, 10247 Berlin, Germany
                    All rights reserved
                EMail : <support@mwat.de>
 */
@@ -33,12 +33,16 @@ import (
 )
 
 var (
-	// AnonymiseURLs decides whether to anonymise the remote URLs
+	// AnonymiseURLs decides whether to anonymise the remote IP addresses
 	// before writing them to the logfile (default: `true`).
 	//
 	// For privacy and legal reasons this variable should always
 	// stay `true`.
 	AnonymiseURLs = true
+
+	// AnonymiseErrors decides whether to anonymise remote IP addresses
+	// that cause errors.
+	AnonymiseErrors = false
 )
 
 type (
@@ -138,29 +142,43 @@ var (
 
 	// RegEx to match IPv6 addresses:
 	alIpv6RE = regexp.MustCompile(`([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})`)
+
+	alBracketRE = regexp.MustCompile(`\[([0-9a-f:\.]+)\]`)
 )
 
 // `getRemote()` reads and anonymises the remote address.
-func getRemote(aRequest *http.Request) (rAddress string) {
+func getRemote(aRequest *http.Request, aStatus int) (rAddress string) {
 	var err error
 
 	addr := aRequest.RemoteAddr
 	// We neither need nor want the remote port here:
-	if rAddress, _, err = net.SplitHostPort(addr); err != nil {
+	if rAddress, _, err = net.SplitHostPort(addr); nil != err {
 		// err == "missing port in address"
-		rAddress = addr
+
+		if matches := alBracketRE.FindStringSubmatch(addr); 1 < len(matches) {
+			// Remove "[]" from address
+			rAddress = matches[1]
+		} else {
+			rAddress = addr
+		}
 	}
+
 	// Check whether the request went through a proxy.
 	// X-Forwarded-For: client, proxy1, proxy2
 	// Note: "proxy3" is the actual sender (i.e. aRequest.RemoteAddr).
 	if xff := strings.Trim(aRequest.Header.Get("X-Forwarded-For"), ","); 0 < len(xff) {
 		addrs := strings.Split(xff, ",")
-		if ip := net.ParseIP(addrs[0]); ip != nil {
+		if ip := net.ParseIP(addrs[0]); nil != ip {
 			rAddress = ip.String()
 		}
 	}
 
-	if !AnonymiseURLs { // Bad Choice!
+	if !AnonymiseURLs { // Bad choice generally …
+		return
+	}
+
+	if (!AnonymiseErrors) && (400 <= aStatus) {
+		// store full address for requests causing errors
 		return
 	}
 
@@ -276,7 +294,7 @@ func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aLogChannel chan
 
 	// build the log string and send it to the channel:
 	aLogChannel <- fmt.Sprintf(alApacheFormatPattern,
-		getRemote(aRequest),
+		getRemote(aRequest, aLogger.status),
 		getUsername(aRequest.URL),
 		aLogger.when.Format("02/Jan/2006:15:04:05 -0700"),
 		aRequest.Method,
