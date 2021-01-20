@@ -1,3 +1,3 @@
 module github.com/mwat56/apachelogger
 
-go 1.14
+go 1.15
