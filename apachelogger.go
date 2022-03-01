@@ -41,7 +41,7 @@ var (
 	AnonymiseURLs = true
 
 	// AnonymiseErrors decides whether to anonymise remote IP addresses
-	// that cause errors.
+	// that cause errors with our server using this module.
 	AnonymiseErrors = false
 )
 
@@ -144,6 +144,9 @@ var (
 	alIpv6RE = regexp.MustCompile(`([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})`)
 
 	alBracketRE = regexp.MustCompile(`\[([0-9a-f:\.]+)\]`)
+
+	// alLastLoggingDate stores the last day of logging
+	alLastLoggingDate time.Time = time.Now()
 )
 
 // `getRemote()` reads and anonymises the remote address.
@@ -233,6 +236,28 @@ var (
 	alWrapOnce sync.Once
 )
 
+// compareDayStamps returns whether the current message's date differs
+// from the last logging date.
+//
+// The method returns `true` if the day/month/year changed from the
+// time the last protocol messages was logged.
+func compareDayStamps() (rChanged bool) {
+	var (
+		currentLoggingDate  = time.Now()
+		nYear, nMonth, nDay = currentLoggingDate.Date()
+		oYear, oMonth, oDay = alLastLoggingDate.Date()
+	)
+
+	rChanged = (nDay != oDay) ||
+		(nMonth != oMonth) ||
+		(nYear != oYear)
+	if rChanged {
+		alLastLoggingDate = currentLoggingDate
+	}
+
+	return
+} // compareDayStamps()
+
 // `goCustomLog()` sends a custom log message on behalf of `Log()`.
 //
 //	`aSender` Identification of the message's sender.
@@ -283,6 +308,7 @@ func goIgnoreLog(aMsgSource <-chan string) {
 //
 //	`aLogger` is the handler of log messages.
 //	`aRequest` represents an HTTP request received by the server.
+//	`aLogChannel` is the channel to write the message to.
 func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aLogChannel chan<- string) {
 	defer func() {
 		_ = recover() // panic: send on closed channel
@@ -347,6 +373,10 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 			if !more { // Channel closed
 				return
 			}
+			if compareDayStamps() { // it's a new day …
+				txt = "\n" + txt
+			} // if
+
 			if nil == logFile {
 				// Loop until we actually opened the logfile:
 				for {
@@ -414,6 +444,8 @@ func Log(aSender, aMessage string) {
 //	`aHandler` responds to the actual HTTP request.
 //	`aAccessLog` is the name of the file to use for access log messages.
 //	`aErrorLog` is the name of the file to use for error log messages.
+//
+// The function returns the (augmented) `http.Handler`.
 func Wrap(aHandler http.Handler, aAccessLog, aErrorLog string) http.Handler {
 	alWrapOnce.Do(func() {
 		if usr, err := user.Current(); (nil == err) && (0 < len(usr.Username)) {
