@@ -3,5 +3,6 @@
 bin/
 demo
 .git/
+.github/
 TODO.*
 .vscode/
