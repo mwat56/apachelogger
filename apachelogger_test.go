@@ -1,7 +1,8 @@
 /*
-   Copyright © 2019, 2022 M.Watermann, 10247 Berlin, Germany
-                   All rights reserved
-               EMail : <support@mwat.de>
+Copyright © 2019, 2024  M.Watermann, 10247 Berlin, Germany
+
+	    All rights reserved
+	EMail : <support@mwat.de>
 */
 package apachelogger
 
@@ -141,3 +142,6 @@ func Benchmark_goCustomLog(b *testing.B) {
 		}
 	}
 } // Benchmark_goCustomLog()
+
+/* _EoF_ */
+

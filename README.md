@@ -51,7 +51,6 @@ To include the automatic logging facility you just call the `Wrap()` function as
 		apachelogger.SetErrLog(&server)
 
 		if err := server.ListenAndServe(); nil != err {
-			apachelogger.Close()
 			log.Fatalf("%s: %v", os.Args[0], err)
 		}
 	} // main()
@@ -114,7 +113,7 @@ No external libraries were used building `ApacheLogger`.
 
 ## Licence
 
-        Copyright © 2019, 2022 M.Watermann, 10247 Berlin, Germany
+        Copyright © 2019, 2024  M.Watermann, 10247 Berlin, Germany
                         All rights reserved
                     EMail : <support@mwat.de>
 
