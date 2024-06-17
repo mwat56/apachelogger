@@ -1,7 +1,8 @@
 /*
-   Copyright © 2019, 2022 M.Watermann, 10247 Berlin, Germany
-                   All rights reserved
-               EMail : <support@mwat.de>
+Copyright © 2019, 2024  M.Watermann, 10247 Berlin, Germany
+
+	    All rights reserved
+	EMail : <support@mwat.de>
 */
 package apachelogger
 
@@ -32,14 +33,14 @@ import (
 )
 
 var (
-	// AnonymiseURLs decides whether to anonymise the remote IP addresses
+	// `AnonymiseURLs` decides whether to anonymise the remote IP addresses
 	// before writing them to the logfile (default: `true`).
 	//
 	// For privacy and legal reasons this variable should always
 	// stay `true`.
 	AnonymiseURLs = true
 
-	// AnonymiseErrors decides whether to anonymise remote IP addresses
+	// `AnonymiseErrors` decides whether to anonymise remote IP addresses
 	// that cause errors with our server using this module.
 	AnonymiseErrors = false
 )
@@ -54,7 +55,7 @@ type (
 	}
 )
 
-// Write writes the data to the connection as part of an HTTP reply.
+// `Write()` writes the data to the connection as part of an HTTP reply.
 //
 // Part of the `http.ResponseWriter` interface.
 func (lw *tLogWriter) Write(aData []byte) (int, error) {
@@ -67,7 +68,7 @@ func (lw *tLogWriter) Write(aData []byte) (int, error) {
 	return lw.ResponseWriter.Write(aData)
 } // Write()
 
-// WriteHeader sends an HTTP response header with the provided
+// `WriteHeader()` sends an HTTP response header with the provided
 // status code.
 //
 // Part of the `http.ResponseWriter` interface.
@@ -85,23 +86,23 @@ type (
 	tLogLog struct{}
 )
 
-// Write sends `aMessage` from the running server to the log file.
+// `Write()` sends `aMessage` from the running server to the log file.
 // It returns the number of bytes written and `nil`.
 //
 // Implementing the `io.Writer` interface.
 //
 //	`aMessage` The error text to log.
-func (ll tLogLog) Write(aMessage []byte) (int, error) {
-	ml := len(aMessage)
-	if 0 < ml {
+func (ll tLogLog) Write(aMessage []byte) (rLen int, rErr error) {
+	rLen = len(aMessage)
+	if 0 < rLen {
 		// Write to the error logfile in background:
 		go goCustomLog(`errorLogger`, string(aMessage), `ERR`, time.Now(), alErrorQueue)
 	}
 
-	return ml, nil
+	return
 } // Write()
 
-// SetErrLog sets the error logger of `aServer`.
+// `SetErrLog()` sets the error logger of `aServer`.
 //
 //	`aServer` The server instance whose errlogger is to be set.
 func SetErrLog(aServer *http.Server) {
@@ -235,7 +236,7 @@ var (
 	alWrapOnce sync.Once
 )
 
-// compareDayStamps returns whether the current message's date differs
+// `compareDayStamps()` returns whether the current message's date differs
 // from the last logging date.
 //
 // The method returns `true` if the day/month/year changed from the
@@ -268,10 +269,10 @@ func goCustomLog(aSender, aMessage, aPrefix string, aTime time.Time, aLogChannel
 	defer func() {
 		_ = recover() // panic: send on closed channel
 	}()
-	if 0 == len(aSender) {
+	if "" == aSender {
 		aSender = filepath.Base(os.Args[0])
 	}
-	if 0 == len(aMessage) {
+	if "" == aMessage {
 		aMessage = "PING"
 	} else {
 		aMessage = strings.Replace(aMessage, "\n", "; ", -1)
@@ -313,7 +314,7 @@ func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aLogChannel chan
 		_ = recover() // panic: send on closed channel
 	}()
 	agent := aRequest.UserAgent()
-	if 0 == len(agent) {
+	if "" == agent {
 		agent = "-"
 	}
 
@@ -363,7 +364,7 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 		}
 	}()
 
-	time.Sleep(alFileCloserDelay) // let the application initialise
+	time.Sleep(1234) // let the application initialise
 	closeTimer = time.NewTimer(alFileCloserDelay)
 
 	for { // Wait for strings to log/write
@@ -415,7 +416,7 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
-// Err writes `aMessage` on behalf of `aSender` to the error logfile.
+// `Err()` writes `aMessage` on behalf of `aSender` to the error logfile.
 //
 //	`aSender` The name/designation of the sending entity.
 //	`aMessage` The text to write to the error logfile.
@@ -423,7 +424,7 @@ func Err(aSender, aMessage string) {
 	go goCustomLog(aSender, aMessage, `ERR`, time.Now(), alErrorQueue)
 } // Err()
 
-// Log writes `aMessage` on behalf of `aSender` to the access logfile.
+// 'Log()' writes `aMessage` on behalf of `aSender` to the access logfile.
 //
 //	`aSender` The name/designation of the sending entity.
 //	`aMessage` The text to write to the access logfile.
@@ -431,7 +432,7 @@ func Log(aSender, aMessage string) {
 	go goCustomLog(aSender, aMessage, `LOG`, time.Now(), alAccessQueue)
 } // Log()
 
-// Wrap returns a handler function that includes logging, wrapping
+// `Wrap()` returns a handler function that includes logging, wrapping
 // the given `aHandler`, and calling it internally.
 //
 // The logfile entries written to `aAccessLog` resemble the combined
