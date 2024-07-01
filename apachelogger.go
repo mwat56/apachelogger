@@ -6,15 +6,6 @@ Copyright © 2019, 2024  M.Watermann, 10247 Berlin, Germany
 */
 package apachelogger
 
-//lint:file-ignore ST1017 – I prefer Yoda conditions
-
-/*
-   This package can be used to add a logfile facility to your
-   `Go` web-server.
-   The format of the generated logfile entries resembles that
-   of the popular Apache web-server.
-*/
-
 import (
 	"fmt"
 	"log"
@@ -31,6 +22,8 @@ import (
 	"sync"
 	"time"
 )
+
+//lint:file-ignore ST1017 – I prefer Yoda conditions
 
 var (
 	// `AnonymiseURLs` decides whether to anonymise the remote IP addresses
@@ -58,6 +51,13 @@ type (
 // `Write()` writes the data to the connection as part of an HTTP reply.
 //
 // Part of the `http.ResponseWriter` interface.
+//
+// Parameters:
+// - `aData`: The data to to write.
+//
+// Returns:
+// - `int`: The number of bytes written.
+// - `error`: a possible error of processing.
 func (lw *tLogWriter) Write(aData []byte) (int, error) {
 	if 0 == lw.status {
 		lw.status = 200
@@ -73,7 +73,8 @@ func (lw *tLogWriter) Write(aData []byte) (int, error) {
 //
 // Part of the `http.ResponseWriter` interface.
 //
-//	`aStatus` is the request's final result code.
+// Parameters:
+// - `aStatus`: The request's final result code.
 func (lw *tLogWriter) WriteHeader(aStatus int) {
 	lw.status = aStatus
 	lw.ResponseWriter.WriteHeader(aStatus)
@@ -91,27 +92,39 @@ type (
 //
 // Implementing the `io.Writer` interface.
 //
-//	`aMessage` The error text to log.
-func (ll tLogLog) Write(aMessage []byte) (rLen int, rErr error) {
-	rLen = len(aMessage)
-	if 0 < rLen {
+// Parameters:
+// - `aMessage` The error text to log.
+//
+// Returns:
+// - `int`: The number of bytes written.
+// - `error`: `nil`
+func (ll tLogLog) Write(aMessage []byte) (int, error) {
+	result := len(aMessage)
+	if 0 < result {
 		// Write to the error logfile in background:
 		go goCustomLog(`errorLogger`, string(aMessage), `ERR`, time.Now(), alErrorQueue)
 	}
 
-	return
+	return result, nil
 } // Write()
 
-// `SetErrLog()` sets the error logger of `aServer`.
+// `SetErrorLog()` sets the error logger of `aServer`.
 //
-//	`aServer` The server instance whose errlogger is to be set.
-func SetErrLog(aServer *http.Server) {
+// Parameters:
+// - `aServer` The server instance whose errlogger is to be set.
+func SetErrorLog(aServer *http.Server) {
 	aServer.ErrorLog = log.New(tLogLog{}, "", log.Llongfile)
 } // SetErrLog()
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // `getPath()` returns the requested path (and CGI query).
+//
+// Parameters:
+// - aURL: The HTTP request object's URL.
+//
+// Returns:
+// - `string`: The HTTP path as a string.
 func getPath(aURL *url.URL) (rURL string) {
 	rURL = aURL.Path
 	if 0 < len(aURL.RawQuery) {
@@ -125,16 +138,44 @@ func getPath(aURL *url.URL) (rURL string) {
 } // getPath()
 
 // `getReferrer()` returns the request header's referrer field.
+//
+// If the referrer field is not specified in the request, it defaults
+// to "-".
+//
+// Parameters:
+// - aHeader: The HTTP request object's header.
+//
+// Returns:
+// - `string`: The HTTP referrer field as a string.
 func getReferrer(aHeader *http.Header) (rReferrer string) {
 	if rReferrer = aHeader.Get("Referer"); 0 < len(rReferrer) {
 		return
 	}
+
 	if rReferrer = aHeader.Get("Referrer"); 0 < len(rReferrer) {
 		return
 	}
 
 	return "-"
 } // getReferrer()
+
+// `getProto()` returns the HTTP protocol version from the request.
+//
+// If the protocol version is not specified in the request, it defaults
+// to "HTTP/1.0".
+//
+// Parameters:
+// - `aRequest`: The HTTP request object.
+//
+// Returns:
+// - `string`: The HTTP protocol version as a string.
+func getProto(aRequest *http.Request) (rProto string) {
+	if rProto = aRequest.Proto; "" == rProto {
+		rProto = "HTTP/1.0"
+	}
+
+	return
+} // getProto()
 
 var (
 	// RegEx to match IPv4 addresses:
@@ -150,6 +191,24 @@ var (
 )
 
 // `getRemote()` reads and anonymises the remote address.
+//
+// It takes an http.Request and the HTTP status code of the current request.
+// It returns the anonymised remote address.
+//
+// If the request went through a proxy, the function will try to anonymise
+// the remote IP address of the proxy.
+//
+// If the 'AnonymiseURLs' flag is set to 'true', the function will anonymise
+// the remote IP addresses. If the 'AnonymiseErrors' flag is set to 'true',
+// the function will anonymise the remote IP addresses of requests causing
+// errors.
+//
+// Parameters:
+// - `aRequest`: The HTTP request object.
+// - `aStatus`: The HTTP status code.
+//
+// Returns:
+// - `string`: The anonymised remote address as a string.
 func getRemote(aRequest *http.Request, aStatus int) (rAddress string) {
 	var err error
 
@@ -199,10 +258,16 @@ func getRemote(aRequest *http.Request, aStatus int) (rAddress string) {
 } // getRemote()
 
 // `getUsername()` returns the request's username (if any).
-func getUsername(aURL *url.URL) (rUser string) {
+//
+// Parameters:
+// - `aURL`: The HTTP request object's URL.
+//
+// Returns:
+// - `string`: The username as a string.
+func getUsername(aURL *url.URL) string {
 	if nil != aURL.User {
-		if rUser = aURL.User.Username(); 0 < len(rUser) {
-			return
+		if user := aURL.User.Username(); "" != user {
+			return user
 		}
 	}
 
@@ -236,36 +301,38 @@ var (
 	alWrapOnce sync.Once
 )
 
-// `compareDayStamps()` returns whether the current message's date differs
+// `compareDayStamps()` checks whether the current message's date differs
 // from the last logging date.
 //
-// The method returns `true` if the day/month/year changed from the
-// time the last protocol messages was logged.
-func compareDayStamps() (rChanged bool) {
+// Returns:
+// - `bool`: `true` if the day changed from the day the
+// last protocol message was logged, or `false` otherwise.
+func compareDayStamps() bool {
 	var (
 		currentLoggingDate  = time.Now()
 		nYear, nMonth, nDay = currentLoggingDate.Date()
 		oYear, oMonth, oDay = alLastLoggingDate.Date()
 	)
 
-	rChanged = (nDay != oDay) ||
+	changed := (nDay != oDay) ||
 		(nMonth != oMonth) ||
 		(nYear != oYear)
-	if rChanged {
+	if changed {
 		alLastLoggingDate = currentLoggingDate
 	}
 
-	return
+	return changed
 } // compareDayStamps()
 
-// `goCustomLog()` sends a custom log message on behalf of `Log()`.
+// `goCustomLog()` sends a custom log message on behalf of `Log()` and `Err()`.
 //
-//	`aSender` Identification of the message's sender.
-//	`aMessage` The message to write to the logfile.
-//	`aPrefix` A prefix for the log message (either `LOG` or `ERR`).
-//	`aTime` The time to log.
-//	`aLogChannel` The channel to send the message to.
-func goCustomLog(aSender, aMessage, aPrefix string, aTime time.Time, aLogChannel chan<- string) {
+// Parameters:
+// - `aSender`: Identification of the message's sender.
+// - `aMessage`: The message to write to the logfile.
+// - `aMethod`: Either `LOG` or `ERR`.
+// - `aTime`: The time to log.
+// - `aLogChannel`: The channel to send the message to.
+func goCustomLog(aSender, aMessage, aMethod string, aTime time.Time, aLogChannel chan<- string) {
 	defer func() {
 		_ = recover() // panic: send on closed channel
 	}()
@@ -285,69 +352,24 @@ func goCustomLog(aSender, aMessage, aPrefix string, aTime time.Time, aLogChannel
 		"127.0.0.1",
 		alCurrentUser,
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
-		aPrefix,
+		aMethod,
 		aMessage,
 		"HTTP/1.0",
 		500,
 		len(aMessage),
-		aSender,
+		aSender, // instead of Referer header
 		"mwat56/apachelogger",
 	)
 } // goCustomLog()
 
-// `goIgnoreLog()` just reads from `aMsgSource` ignoring the values.
-func goIgnoreLog(aMsgSource <-chan string) {
-	for range aMsgSource {
-		runtime.Gosched()
-	}
-} // goIgnoreLog()
-
-// `goStandardLog()` prepares the actual background logging.
+// `goDoLogWrite()` performs the actual file write.
 //
-// This function is called once for each request.
+// This function runs indefinitely, handling all write requests.
 //
-//	`aLogger` is the handler of log messages.
-//	`aRequest` represents an HTTP request received by the server.
-//	`aLogChannel` is the channel to write the message to.
-func goStandardLog(aLogger *tLogWriter, aRequest *http.Request, aLogChannel chan<- string) {
-	defer func() {
-		_ = recover() // panic: send on closed channel
-	}()
-	agent := aRequest.UserAgent()
-	if "" == agent {
-		agent = "-"
-	}
-
-	// build the log string and send it to the channel:
-	aLogChannel <- fmt.Sprintf(alApacheFormatPattern,
-		getRemote(aRequest, aLogger.status),
-		getUsername(aRequest.URL),
-		aLogger.when.Format("02/Jan/2006:15:04:05 -0700"),
-		aRequest.Method,
-		getPath(aRequest.URL),
-		aRequest.Proto,
-		aLogger.status,
-		aLogger.size,
-		getReferrer(&aRequest.Header),
-		agent,
-	)
-	aLogger.status, aLogger.size = 0, 0
-} // goStandardLog()
-
-const (
-	alFileCloserDelay = time.Second << 3 // eight seconds
-
-	// Mode of opening the logfile(s).
-	alOpenFlags = os.O_CREATE | os.O_APPEND | os.O_WRONLY | os.O_SYNC
-)
-
-// `goWriteLog()` performs the actual file write.
-//
-// This function is run only once, handling all write requests.
-//
-//	`aMsgLog` The name of the logfile to write to.
-//	`aMsgSource` The source of log messages to write.
-func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
+// Parameters:
+// - `aLogFile`: The name of the logfile to write to.
+// - `aMsgSource`: The source of log messages to write.
+func goDoLogWrite(aLogFile string, aMsgSource <-chan string) {
 	var (
 		cLen       int
 		closeTimer *time.Timer
@@ -380,7 +402,8 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 			if nil == logFile {
 				// Loop until we actually opened the logfile:
 				for {
-					if logFile, err = os.OpenFile(aMsgLog, alOpenFlags, 0640); /* #nosec G302 */ nil == err {
+					if logFile, err = os.OpenFile(aLogFile,
+						alOpenFlags, 0640); /* #nosec G302 */ nil == err {
 						break
 					}
 					time.Sleep(1234)
@@ -412,22 +435,86 @@ func goWriteLog(aMsgLog string, aMsgSource <-chan string) {
 			closeTimer.Reset(alFileCloserDelay)
 		} // select
 	} // for
-} // goWriteLog()
+} // goDoLogWrite()
+
+// `goIgnoreLog()` is a background goroutine that reads from `aMsgSource`
+// ignoring the values.
+//
+// Parameters:
+// - `aMsgSource`: The channel to read the messages from.
+func goIgnoreLog(aMsgSource <-chan string) {
+	for {
+		select {
+		case txt := <-aMsgSource:
+			// just empty the channel
+			if "" != txt {
+				txt = ""
+			}
+
+		default:
+			runtime.Gosched()
+		}
+	}
+} // goIgnoreLog()
+
+// `goWebLog()` prepares the actual background logging.
+//
+// This function is called once for each request.
+//
+// Parameters:
+// - `aLogger`: The handler of log messages.
+// - `aRequest:` An HTTP request received by the server.
+// - `aLogChannel`: The channel to write the message to.
+func goWebLog(aLogger *tLogWriter, aRequest *http.Request,
+	aLogChannel chan<- string) {
+	defer func() {
+		_ = recover() // panic: send on closed channel
+	}()
+	agent := aRequest.UserAgent()
+	if "" == agent {
+		agent = "-"
+	}
+
+	// build the log string and send it to the channel:
+	aLogChannel <- fmt.Sprintf(alApacheFormatPattern,
+		getRemote(aRequest, aLogger.status),
+		getUsername(aRequest.URL),
+		aLogger.when.Format("02/Jan/2006:15:04:05 -0700"),
+		aRequest.Method,
+		getPath(aRequest.URL),
+		getProto(aRequest),
+		aLogger.status,
+		aLogger.size,
+		getReferrer(&aRequest.Header),
+		agent,
+	)
+
+	aLogger.status, aLogger.size = 0, 0
+} // goWebLog()
+
+const (
+	alFileCloserDelay = time.Second << 3 // eight seconds
+
+	// Mode of opening the logfile(s).
+	alOpenFlags = os.O_CREATE | os.O_APPEND | os.O_WRONLY | os.O_SYNC
+)
 
 /* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
 
 // `Err()` writes `aMessage` on behalf of `aSender` to the error logfile.
 //
-//	`aSender` The name/designation of the sending entity.
-//	`aMessage` The text to write to the error logfile.
+// Parameters:
+// - `aSender`: The name/designation of the sending entity.
+// - `aMessage`: The text to write to the error logfile.
 func Err(aSender, aMessage string) {
 	go goCustomLog(aSender, aMessage, `ERR`, time.Now(), alErrorQueue)
 } // Err()
 
 // 'Log()' writes `aMessage` on behalf of `aSender` to the access logfile.
 //
-//	`aSender` The name/designation of the sending entity.
-//	`aMessage` The text to write to the access logfile.
+// Parameters:
+// - `aSender`: The name/designation of the sending entity.
+// - `aMessage`: The text to write to the access logfile.
 func Log(aSender, aMessage string) {
 	go goCustomLog(aSender, aMessage, `LOG`, time.Now(), alAccessQueue)
 } // Log()
@@ -441,17 +528,18 @@ func Log(aSender, aMessage string) {
 // In case the provided `aAccessLog` can't be opened `Wrap()` terminates
 // the program with an appropriate error-message.
 //
-//	`aHandler` responds to the actual HTTP request.
-//	`aAccessLog` is the name of the file to use for access log messages.
-//	`aErrorLog` is the name of the file to use for error log messages.
+// Parameters:
+// - `aHandler`: Responds to the actual HTTP request.
+// - `aAccessLog`: The name of the file to use for access log messages.
+// - `aErrorLog`: The name of the file to use for error log messages.
 //
-// The function returns the (augmented) `http.Handler`.
+// Returns:
+// - `http.Handler`:The (augmented) `aHandler`.
 func Wrap(aHandler http.Handler, aAccessLog, aErrorLog string) http.Handler {
 	alWrapOnce.Do(func() {
 		if usr, err := user.Current(); (nil == err) && (0 < len(usr.Username)) {
 			alCurrentUser = usr.Username
 		}
-
 		if 0 < len(aAccessLog) {
 			absFile, _ := filepath.Abs(aAccessLog)
 			aAccessLog = absFile
@@ -462,7 +550,7 @@ func Wrap(aHandler http.Handler, aAccessLog, aErrorLog string) http.Handler {
 			if nil != err {
 				log.Fatalf("%s can't open access logfile: %v", os.Args[0], err)
 			}
-			go goWriteLog(aAccessLog, alAccessQueue)
+			go goDoLogWrite(aAccessLog, alAccessQueue)
 		} else {
 			go goIgnoreLog(alAccessQueue)
 		}
@@ -481,7 +569,7 @@ func Wrap(aHandler http.Handler, aAccessLog, aErrorLog string) http.Handler {
 				if nil != err {
 					log.Fatalf("%s can't open error logfile: %v", os.Args[0], err)
 				}
-				go goWriteLog(aErrorLog, alErrorQueue)
+				go goDoLogWrite(aErrorLog, alErrorQueue)
 			}
 		} else {
 			go goIgnoreLog(alErrorQueue)
@@ -493,17 +581,16 @@ func Wrap(aHandler http.Handler, aAccessLog, aErrorLog string) http.Handler {
 			defer func() {
 				// make sure a `panic` won't kill the program
 				if err := recover(); nil != err {
-					go goCustomLog("errorLogger",
+					Err("ApacheLogger/catchPanic",
 						fmt.Sprintf("caught panic: %v - %s",
-							err, debug.Stack()), `ERR`,
-						time.Now(), alErrorQueue)
+							err, debug.Stack()))
 				}
 			}()
 			lw := &tLogWriter{aWriter, 0, 0, time.Now()}
 			aHandler.ServeHTTP(lw, aRequest)
 
 			// run the log-entry formatter:
-			go goStandardLog(lw, aRequest, alAccessQueue)
+			go goWebLog(lw, aRequest, alAccessQueue)
 		})
 } // Wrap()
 
