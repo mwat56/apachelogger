@@ -1,7 +1,8 @@
 /*
-   Copyright © 2019, 2022 M.Watermann, 10247 Berlin, Germany
-                   All rights reserved
-               EMail : <support@mwat.de>
+Copyright © 2019, 2024 M.Watermann, 10247 Berlin, Germany
+
+	    All rights reserved
+	EMail : <support@mwat.de>
 */
 package main
 
@@ -33,7 +34,7 @@ func main() {
 		Addr:    "127.0.0.1:8080",
 		Handler: apachelogger.Wrap(pageHandler, accessLog, errorLog),
 	}
-	apachelogger.SetErrLog(&server)
+	apachelogger.SetErrorLog(&server)
 
 	if err := server.ListenAndServe(); nil != err {
 		log.Fatalf("%s: %v", os.Args[0], err)
