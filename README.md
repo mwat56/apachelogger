@@ -22,7 +22,7 @@
 ## Purpose
 
 This package can be used to add a logfile facility to your `Go` web-server.
-The format of the generated logfile entries resemble those of the popular _Apache_ web-server (see below).
+The format of the generated logfile entries resembles that of the popular _Apache_ web-server (see below).
 
 ## Installation
 
@@ -94,7 +94,7 @@ The messages are logged as coming from `127.0.0.1` with an user-agent of `mwat56
 
 If you want to automatically log your server's errors as well you'd call
 
-	apachelogger.SetErrLog(aServer *http.Server)
+	apachelogger.SetErrorLog(aServer *http.Server)
 
 during initialisation of your program.
 This will write the errors thrown by the server to the errorlog passed to the `Wrap()` function.
