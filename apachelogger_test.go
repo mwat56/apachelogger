@@ -6,23 +6,51 @@ Copyright © 2019, 2024  M.Watermann, 10247 Berlin, Germany
 */
 package apachelogger
 
-//lint:file-ignore ST1017 – I prefer Yoda conditions
-
 import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
 )
+
+//lint:file-ignore ST1017 – I prefer Yoda conditions
+
+func Test_compareDayStamps(t *testing.T) {
+	ll1 := time.Now()
+	ll2 := ll1.Add(-1 * (24 * time.Hour))
+	ll3 := ll1.Add((24 * time.Hour))
+
+	tests := []struct {
+		name     string
+		prevTime time.Time
+		want     bool
+	}{
+		{"1", ll1, false},
+		{"2", ll2, true},
+		{"4", ll3, true},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		alLastLoggingDate = tt.prevTime
+		t.Run(tt.name, func(t *testing.T) {
+			if got := compareDayStamps(); got != tt.want {
+				t.Errorf("%q: Test_compareDayStamps() = %v, want %v",
+					tt.name, got, tt.want)
+			}
+		})
+	}
+} // Test_compareDayStamps
 
 func Test_getPath(t *testing.T) {
 	var u1, u2, u3, u4, u5 url.URL
 	f := "id"
 	p := "/page.html"
 	q := "key=val"
+
 	w1 := ""
 	u2.Path = p
 	w2 := p
@@ -36,29 +64,76 @@ func Test_getPath(t *testing.T) {
 	u5.Path = p
 	u5.RawQuery = q
 	w5 := u5.Path + "?" + u5.RawQuery + "#" + u5.Fragment
-	type args struct {
-		aURL *url.URL
-	}
+
 	tests := []struct {
 		name string
-		args args
+		url  *url.URL
 		want string
 	}{
 		// TODO: Add test cases.
-		{" 1", args{&u1}, w1},
-		{" 2", args{&u2}, w2},
-		{" 3", args{&u3}, w3},
-		{" 4", args{&u4}, w4},
-		{" 5", args{&u5}, w5},
+		{" 1", &u1, w1},
+		{" 2", &u2, w2},
+		{" 3", &u3, w3},
+		{" 4", &u4, w4},
+		{" 5", &u5, w5},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := getPath(tt.args.aURL); got != tt.want {
-				t.Errorf("getPath() = %v, want %v", got, tt.want)
+			if got := getPath(tt.url); got != tt.want {
+				t.Errorf("%q: Test_getPath() = %v, want %v",
+					tt.name, got, tt.want)
 			}
 		})
 	}
 } // Test_getPath()
+
+func prepHttpHeader() *http.Header {
+	mockHeader := make(http.Header)
+	mockHeader.Add("Content-Type", "application/json")
+	mockHeader.Add("Authorization", "Bearer token123")
+	mockHeader.Add("Custom-Header", "custom-value")
+
+	return &mockHeader
+} // prepHttpHeader()
+
+func Test_getReferrer(t *testing.T) {
+	mh := prepHttpHeader()
+	wr := "-"
+	mh1 := prepHttpHeader()
+	wr1 := "some URL"
+	mh1.Add("Referer", wr1)
+	mh2 := prepHttpHeader()
+	wr2 := "some other URL"
+	mh2.Add("Referrer", wr2)
+	mh3 := prepHttpHeader()
+	mh3.Add("Referrrer", wr)
+
+	// Create a new http.Header object
+	mockHeader := make(http.Header)
+	mockHeader.Add("Content-Type", "application/json")
+	mockHeader.Add("Authorization", "Bearer token123")
+	mockHeader.Add("Custom-Header", "custom-value")
+
+	tests := []struct {
+		name          string
+		header        *http.Header
+		wantRReferrer string
+	}{
+		{"0", mh, wr},
+		{"1", mh1, wr1},
+		{"2", mh2, wr2},
+		{"3", mh3, wr},
+		// TODO: Add test cases.
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if gotRReferrer := getReferrer(tt.header); gotRReferrer != tt.wantRReferrer {
+				t.Errorf("%q: getReferrer() = %q,\nwant %q",
+					tt.name, gotRReferrer, tt.wantRReferrer)
+			}
+		})
+	}
+} // Test_getReferrer()
 
 func Test_getRemote(t *testing.T) {
 	req1 := httptest.NewRequest("GET", "/", nil)
@@ -122,26 +197,27 @@ func Test_getUsername(t *testing.T) {
 } // Test_getUsername()
 
 func Benchmark_goWrite(b *testing.B) {
-	go goWriteLog("/dev/stdout", alAccessQueue)
+	runtime.GOMAXPROCS(1)
+	go goDoLogWrite("/dev/stdout", alAccessQueue)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		for i := 1; i < 100; i++ {
+		for i := 1; i < 9; i++ {
 			Log("Benchmark_goWrite", strings.Repeat(fmt.Sprintf("%02d%02d ", n, i), 20))
 		}
 	}
 } // Benchmark_goWrite()
 
 func Benchmark_goCustomLog(b *testing.B) {
-	go goWriteLog("/dev/stderr", alErrorQueue)
+	runtime.GOMAXPROCS(1)
+	go goDoLogWrite("/dev/stderr", alErrorQueue)
 	b.ResetTimer()
 
 	for n := 0; n < b.N; n++ {
-		for i := 1; i < 100; i++ {
+		for i := 1; i < 9; i++ {
 			go goCustomLog("Benchmark_goCustomLog", fmt.Sprintf("%02d%02d", n, i), `TEST`, time.Now(), alErrorQueue)
 		}
 	}
 } // Benchmark_goCustomLog()
 
 /* _EoF_ */
-
