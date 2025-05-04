@@ -354,7 +354,7 @@ func goCustomLog(aSender, aMessage, aMethod string, aTime time.Time, aLogChannel
 		aTime.Format("02/Jan/2006:15:04:05 -0700"),
 		aMethod,
 		aMessage,
-		"HTTP/1.0",
+		"HTTP/intern",
 		500,
 		len(aMessage),
 		aSender, // instead of Referer header
