@@ -1,5 +1,5 @@
 /*
-Copyright © 2019, 2024  M.Watermann, 10247 Berlin, Germany
+Copyright © 2019, 2025  M.Watermann, 10247 Berlin, Germany
 
 	    All rights reserved
 	EMail : <support@mwat.de>
@@ -7,6 +7,7 @@ Copyright © 2019, 2024  M.Watermann, 10247 Berlin, Germany
 package apachelogger
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"net"
@@ -25,6 +26,40 @@ import (
 
 //lint:file-ignore ST1017 – I prefer Yoda conditions
 
+type (
+	// `tLogWriter` embeds a `ResponseWriter` and provides log-to-file.
+	tLogWriter struct {
+		http.ResponseWriter           // used to construct the HTTP response
+		size                int       // the size/length of the data sent
+		status              int       // HTTP status code of current request
+		when                time.Time // access time
+	}
+)
+
+const (
+	/*
+		91.64.58.179 - username [25/Apr/2018:20:16:45 +0200] "GET /path/to/file?lang=en HTTP/1.1" 200 27155 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:56.0) Gecko/20100101 Firefox/56.0"
+
+		2001:4dd6:b474:0:1234:5678:90ab:cdef - - [24/Apr/2018:23:58:42 +0200] "GET /path/to/file HTTP/1.1" 200 5361 "https://www.google.de/" "Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1 Mobile/15E148 Safari/604.1"
+	*/
+
+	// `alApacheFormatPattern` is the format of Apache like logfile entries:
+	alApacheFormatPattern = `%s - %s [%s] "%s %s %s" %d %d "%s" "%s"` + "\n"
+
+	// `alDefaultChannelBufferSize` defines the default size for log
+	// message channels.
+	alDefaultChannelBufferSize = 128
+
+	// `alFileCloseDelay` is the time to wait before closing idle log files.
+	alFileCloseDelay = time.Second << 3 // eight seconds
+
+	// `alInitDelay` is the time to wait for application initialisation.
+	alInitDelay = 1234 * time.Millisecond
+
+	// Mode of opening the logfile(s).
+	alOpenFlags = os.O_CREATE | os.O_APPEND | os.O_WRONLY | os.O_SYNC
+)
+
 var (
 	// `AnonymiseURLs` decides whether to anonymise the remote IP addresses
 	// before writing them to the logfile (default: `true`).
@@ -36,17 +71,28 @@ var (
 	// `AnonymiseErrors` decides whether to anonymise remote IP addresses
 	// that cause errors with our server using this module.
 	AnonymiseErrors = false
+
+	// Channel to send access log messages to and read messages from.
+	alAccessQueue = make(chan string, alDefaultChannelBufferSize)
+
+	// RegEx to match bracketed IPv6 addresses:
+	alBracketRE = regexp.MustCompile(`\[([0-9a-f:\.]+)\]`)
+
+	// Name of current user (used by `goCustomLog()`).
+	alCurrentUser string = "-"
+
+	// Channel to send error log messages to and read messages from.
+	alErrorQueue = make(chan string, alDefaultChannelBufferSize)
+
+	// `alLastLoggingDate` stores the last day of logging
+	alLastLoggingDate time.Time = time.Now()
+
+	// Make sure to initialise the wrapper only once.
+	alWrapOnce sync.Once
 )
 
-type (
-	// `tLogWriter` embeds a `ResponseWriter` and provides log-to-file.
-	tLogWriter struct {
-		http.ResponseWriter           // used to construct the HTTP response
-		size                int       // the size/length of the data sent
-		status              int       // HTTP status code of current request
-		when                time.Time // access time
-	}
-)
+// ---------------------------------------------------------------------------
+// `tLogWriter` methods:
 
 // `Write()` writes the data to the connection as part of an HTTP reply.
 //
@@ -80,7 +126,8 @@ func (lw *tLogWriter) WriteHeader(aStatus int) {
 	lw.ResponseWriter.WriteHeader(aStatus)
 } // WriteHeader()
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+// ---------------------------------------------------------------------------
+// `tLogLog` methods:
 
 type (
 	// Simple structure implementing the `io.Writer` interface.
@@ -116,7 +163,31 @@ func SetErrorLog(aServer *http.Server) {
 	aServer.ErrorLog = log.New(tLogLog{}, "", log.Llongfile)
 } // SetErrLog()
 
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+// ---------------------------------------------------------------------------
+// Internal helper functions:
+
+// `compareDayStamps()` checks whether the current message's date differs
+// from the last logging date.
+//
+// Returns:
+// - `bool`: `true` if the day changed from the day the
+// last protocol message was logged, or `false` otherwise.
+func compareDayStamps() bool {
+	var (
+		currentLoggingDate  = time.Now()
+		nYear, nMonth, nDay = currentLoggingDate.Date()
+		oYear, oMonth, oDay = alLastLoggingDate.Date()
+	)
+
+	changed := (nDay != oDay) ||
+		(nMonth != oMonth) ||
+		(nYear != oYear)
+	if changed {
+		alLastLoggingDate = currentLoggingDate
+	}
+
+	return changed
+} // compareDayStamps()
 
 // `getPath()` returns the requested path (and CGI query).
 //
@@ -136,6 +207,24 @@ func getPath(aURL *url.URL) (rURL string) {
 
 	return
 } // getPath()
+
+// `getProto()` returns the HTTP protocol version from the request.
+//
+// If the protocol version is not specified in the request, it defaults
+// to "HTTP/1.0".
+//
+// Parameters:
+// - `aRequest`: The HTTP request object.
+//
+// Returns:
+// - `string`: The HTTP protocol version as a string.
+func getProto(aRequest *http.Request) (rProto string) {
+	if rProto = aRequest.Proto; "" == rProto {
+		rProto = "HTTP/1.0"
+	}
+
+	return
+} // getProto()
 
 // `getReferrer()` returns the request header's referrer field.
 //
@@ -158,37 +247,6 @@ func getReferrer(aHeader *http.Header) (rReferrer string) {
 
 	return "-"
 } // getReferrer()
-
-// `getProto()` returns the HTTP protocol version from the request.
-//
-// If the protocol version is not specified in the request, it defaults
-// to "HTTP/1.0".
-//
-// Parameters:
-// - `aRequest`: The HTTP request object.
-//
-// Returns:
-// - `string`: The HTTP protocol version as a string.
-func getProto(aRequest *http.Request) (rProto string) {
-	if rProto = aRequest.Proto; "" == rProto {
-		rProto = "HTTP/1.0"
-	}
-
-	return
-} // getProto()
-
-var (
-	// RegEx to match IPv4 addresses:
-	alIpv4RE = regexp.MustCompile(`^([0-9]{1,3})\.([0-9]{1,3})\.([0-9]{1,3})\.[0-9]{1,3}`)
-
-	// RegEx to match IPv6 addresses:
-	alIpv6RE = regexp.MustCompile(`([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})\:([0-9a-f]{1,4})`)
-
-	alBracketRE = regexp.MustCompile(`\[([0-9a-f:\.]+)\]`)
-
-	// alLastLoggingDate stores the last day of logging
-	alLastLoggingDate time.Time = time.Now()
-)
 
 // `getRemote()` reads and anonymises the remote address.
 //
@@ -213,7 +271,7 @@ func getRemote(aRequest *http.Request, aStatus int) (rAddress string) {
 	var err error
 
 	addr := aRequest.RemoteAddr
-	// We neither need nor want the remote port here:
+	// We neither need nor want the remote port here.
 	if rAddress, _, err = net.SplitHostPort(addr); nil != err {
 		// err == "missing port in address"
 
@@ -244,14 +302,19 @@ func getRemote(aRequest *http.Request, aStatus int) (rAddress string) {
 		return
 	}
 
-	if matches := alIpv4RE.FindStringSubmatch(rAddress); 3 < len(matches) {
-		// anonymise the remote IPv4 address:
-		rAddress = fmt.Sprintf("%s.%s.%s.0",
-			matches[1], matches[2], matches[3])
-	} else if matches := alIpv6RE.FindStringSubmatch(rAddress); 8 < len(matches) {
-		// anonymise the remote IPv6 address:
-		rAddress = fmt.Sprintf("%s:%s:%s:%s:0:0:0:0",
-			matches[1], matches[2], matches[3], matches[4])
+	ip := net.ParseIP(rAddress)
+	if ip == nil {
+		return // Not a valid IP address
+	}
+
+	if ip4 := ip.To4(); nil != ip4 {
+		// IPv4 address: Zero out last octet
+		ip4[3] = 0
+		rAddress = ip4.String()
+	} else {
+		// IPv6 address: Zero out last 8 bytes
+		ip[8], ip[9], ip[10], ip[11], ip[12], ip[13], ip[14], ip[15] = 0, 0, 0, 0, 0, 0, 0, 0
+		rAddress = ip.String()
 	}
 
 	return
@@ -273,56 +336,6 @@ func getUsername(aURL *url.URL) string {
 
 	return "-"
 } // getUsername()
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
-
-const (
-	/*
-		91.64.58.179 - username [25/Apr/2018:20:16:45 +0200] "GET /path/to/file?lang=en HTTP/1.1" 200 27155 "-" "Mozilla/5.0 (X11; Linux x86_64; rv:56.0) Gecko/20100101 Firefox/56.0"
-
-		2001:4dd6:b474:0:1234:5678:90ab:cdef - - [24/Apr/2018:23:58:42 +0200] "GET /path/to/file HTTP/1.1" 200 5361 "https://www.google.de/" "Mozilla/5.0 (iPhone; CPU iPhone OS 12_2 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/12.1 Mobile/15E148 Safari/604.1"
-	*/
-
-	// `alApacheFormatPattern` is the format of Apache like logfile entries:
-	alApacheFormatPattern = `%s - %s [%s] "%s %s %s" %d %d "%s" "%s"` + "\n"
-)
-
-var (
-	// Channel to send access log messages to and read messages from.
-	alAccessQueue = make(chan string, 127)
-
-	// Name of current user (used by `goCustomLog()`).
-	alCurrentUser string = "-"
-
-	// Channel to send error log messages to and read messages from.
-	alErrorQueue = make(chan string, 127)
-
-	// Make sure to initialise the wrapper only once.
-	alWrapOnce sync.Once
-)
-
-// `compareDayStamps()` checks whether the current message's date differs
-// from the last logging date.
-//
-// Returns:
-// - `bool`: `true` if the day changed from the day the
-// last protocol message was logged, or `false` otherwise.
-func compareDayStamps() bool {
-	var (
-		currentLoggingDate  = time.Now()
-		nYear, nMonth, nDay = currentLoggingDate.Date()
-		oYear, oMonth, oDay = alLastLoggingDate.Date()
-	)
-
-	changed := (nDay != oDay) ||
-		(nMonth != oMonth) ||
-		(nYear != oYear)
-	if changed {
-		alLastLoggingDate = currentLoggingDate
-	}
-
-	return changed
-} // compareDayStamps()
 
 // `goCustomLog()` sends a custom log message on behalf of `Log()` and `Err()`.
 //
@@ -379,15 +392,17 @@ func goDoLogWrite(aLogFile string, aMsgSource <-chan string) {
 	defer func() {
 		// try to avoid resource leaks
 		if nil != logFile {
-			_ = logFile.Close()
+			if err := logFile.Close(); err != nil && !errors.Is(err, os.ErrClosed) {
+				fmt.Fprintf(os.Stderr, "Error closing logfile: %v\n", err)
+			}
 		}
 		if nil != closeTimer {
 			_ = closeTimer.Stop()
 		}
 	}()
 
-	time.Sleep(1234) // let the application initialise
-	closeTimer = time.NewTimer(alFileCloserDelay)
+	time.Sleep(alInitDelay)
+	closeTimer = time.NewTimer(alFileCloseDelay)
 
 	for { // Wait for strings to log/write
 		select {
@@ -407,7 +422,7 @@ func goDoLogWrite(aLogFile string, aMsgSource <-chan string) {
 						break
 					}
 					time.Sleep(1234)
-					closeTimer.Reset(alFileCloserDelay)
+					closeTimer.Reset(alFileCloseDelay)
 				} // for
 			} // if
 			fmt.Fprint(logFile, txt)
@@ -424,7 +439,7 @@ func goDoLogWrite(aLogFile string, aMsgSource <-chan string) {
 					}
 				} // for
 			} // if
-			closeTimer.Reset(alFileCloserDelay)
+			closeTimer.Reset(alFileCloseDelay)
 
 		case <-closeTimer.C:
 			// Nothing logged in eight seconds => close the file.
@@ -432,7 +447,7 @@ func goDoLogWrite(aLogFile string, aMsgSource <-chan string) {
 				_ = logFile.Close()
 				logFile = nil
 			}
-			closeTimer.Reset(alFileCloserDelay)
+			closeTimer.Reset(alFileCloseDelay)
 		} // select
 	} // for
 } // goDoLogWrite()
@@ -492,14 +507,8 @@ func goWebLog(aLogger *tLogWriter, aRequest *http.Request,
 	aLogger.status, aLogger.size = 0, 0
 } // goWebLog()
 
-const (
-	alFileCloserDelay = time.Second << 3 // eight seconds
-
-	// Mode of opening the logfile(s).
-	alOpenFlags = os.O_CREATE | os.O_APPEND | os.O_WRONLY | os.O_SYNC
-)
-
-/* * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * */
+// ---------------------------------------------------------------------------
+// Exported functions:
 
 // `Err()` writes `aMessage` on behalf of `aSender` to the error logfile.
 //
