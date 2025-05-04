@@ -21,6 +21,17 @@
 
 ## Purpose
 
+`ApacheLogger` is a `Go` middleware package that adds Apache-style logging to `Go` web servers. Key features include:
+
+- Logs HTTP requests in Apache-compatible format,
+- provides privacy protection by anonymizing IP addresses,
+- supports both access and error logging,
+- offers manual logging functions (`Log()` and `Err()`),
+- catches and recovers from panics, logging them to the error log,
+- simple integration via a `Wrap()` function that wraps your HTTP handler.
+
+The package is designed to be lightweight with no external dependencies, making it easy to add professional logging to any Go web application while maintaining privacy compliance.
+
 This package can be used to add a logfile facility to your `Go` web-server.
 The format of the generated logfile entries resembles that of the popular _Apache_ web-server (see below).
 
@@ -55,7 +66,7 @@ To include the automatic logging facility you just call the `Wrap()` function as
 		}
 	} // main()
 
-So you just have to find a way the get/set the name of the desired logfile names – e.g. via a commandline option, or an environment variable, or a config file, whatever suits you best.
+So, you just have to find a way the get/set the name of the desired logfile names – e.g. via a commandline option, or an environment variable, or a config file, whatever suits you best.
 Then you set up your `server` like shown above using the call to `apachelogger.Wrap()` to wrap your original pagehandler with the logging facility.
 
 The creation pattern for a logfile entry is this:
@@ -75,29 +86,27 @@ All the placeholders to be seen in the pattern will be filled in with the approp
 * remote referrer,
 * remote user agent.
 
-It means you can now use all the logfile analysers etc. for Apache logs for your own logfiles as well.
+It means you can now use all the logfile analysers etc. for `Apache` logs for your own logfiles as well.
 
 ## Special Features
 
-As _**privacy**_ becomes a serious concern for a growing number of people (including law makers) – the IP address is definitely to be considered as _personal data_ – this logging facility _anonymises_ the requesting users by setting the host-part of the respective remote address to zero (`0`).
+Since _**privacy**_ became a serious concern for a growing number of people (including law makers) – the IP address is definitely to be considered as _personal data_ – this logging facility _anonymises_ the requesting users by setting the host-part of the respective remote address to zero (`0`).
 This option takes care of e.g. European servers who may _not without explicit consent_ of the users store personal data; this includes IP addresses in logfiles and elsewhere (eg. statistical data gathered from logfiles).
 
-For debugging purposes there's a global flag `AnonymiseErrors` (default: `false`) that allows to fully (e.g. not anonymised) log all requests that cause errors (e.g. 4xx and 5xx statuses).
+For debugging purposes global flag `AnonymiseErrors` (default: `false`) is provided that allows to fully (e.g. not anonymised) log all requests that cause errors (e.g. 4xx and 5xx statuses).
 
 While the logging of web-requests is done automatically you can _manually add entries_ to the logfile by calling
 
 	apachelogger.Log(aSender, aMessage string)
 
-The `aSender` argument should give some indication of from where in your program you're calling the function, and `aMessage` is the text you want to write to the logfile.
-To preserve the format of the log-entry neither `aSender` nor `aMessage` should contain double-quotes (`"`).
+The `aSender` argument should give some indication of from where in your program you're calling the function, and `aMessage` is the text you want to write to the logfile. To preserve the format of the log-entry neither `aSender` nor `aMessage` must contain double-quotes (`"`).
 The messages are logged as coming from `127.0.0.1` with an user-agent of `mwat56/apachelogger`; this should make it easy to find these messages amongst all the 'normal' ones.
 
 If you want to automatically log your server's errors as well you'd call
 
 	apachelogger.SetErrorLog(aServer *http.Server)
 
-during initialisation of your program.
-This will write the errors thrown by the server to the errorlog passed to the `Wrap()` function.
+during initialisation of your program. This will write the errors thrown by the server to the errorlog passed to the `Wrap()` function.
 Additionally you can call
 
 	apachelogger.Err(aSender, aMessage string)
